@@ -76,12 +76,13 @@ function getCustomerTypeLabel(type?: string) {
 </script>
 
 <template>
-  <Modal :footer="false" class="w-[800px]">
+  <Modal :footer="false" class="w-[1080px]">
     <Descriptions
       v-if="customer"
       :column="3"
       bordered
       :label-style="{ width: '80px', whiteSpace: 'nowrap' }"
+      :content-style="{ whiteSpace: 'nowrap' }"
     >
       <DescriptionsItem label="客户编号">
         {{ customer.id }}
@@ -109,14 +110,14 @@ function getCustomerTypeLabel(type?: string) {
       <DescriptionsItem label="存水量">
         {{ customer.storage_amount ?? '-' }}
       </DescriptionsItem>
-      <DescriptionsItem label="欠空桶">
-        {{ customer.owed_empty_bucket ?? '-' }}
+      <DescriptionsItem label="总用水量">
+        {{ customer.total_water_usage ?? customer.totalWaterUsage ?? '-' }}
       </DescriptionsItem>
       <DescriptionsItem label="空桶押金">
         {{ emptyBucketDeposit }} 元
       </DescriptionsItem>
-      <DescriptionsItem label="总用水量">
-        {{ customer.total_water_usage ?? customer.totalWaterUsage ?? '-' }}
+      <DescriptionsItem label="欠空桶">
+        {{ customer.owed_empty_bucket ?? '-' }}
       </DescriptionsItem>
       <DescriptionsItem label="备注">
         {{ customer.remark || '-' }}
