@@ -12,7 +12,9 @@ declare module 'lucide-vue-next' {
   export const ChevronsLeft: Component;
   export const ChevronsRight: Component;
   export const Circle: Component;
+  export const DollarSign: Component;
   export const Dot: Component;
+  export const Droplets: Component;
   export const Eye: Component;
   export const Minus: Component;
   export const MoreHorizontal: Component;

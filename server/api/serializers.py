@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Sample, WaterBrand, Customer
+from .models import Sample, WaterBrand, Customer, BucketDepositConfig
 
 
 class SampleSerializer(serializers.ModelSerializer):
@@ -79,3 +79,13 @@ class CustomerSerializer(serializers.ModelSerializer):
         if value and value > timezone.now().date():
             raise serializers.ValidationError("开户日期不能是未来日期")
         return value
+
+
+class BucketDepositConfigSerializer(serializers.ModelSerializer):
+    """
+    空桶押金配置序列化器
+    """
+    class Meta:
+        model = BucketDepositConfig
+        fields = ['id', 'amount_per_bucket', 'updated_at']
+        read_only_fields = ['id', 'updated_at']

@@ -5,8 +5,8 @@ from rest_framework.views import APIView
 from rest_framework.authtoken.models import Token
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
-from .models import Sample, WaterBrand, Customer
-from .serializers import SampleSerializer, WaterBrandSerializer, CustomerSerializer
+from .models import Sample, WaterBrand, Customer, BucketDepositConfig
+from .serializers import SampleSerializer, WaterBrandSerializer, CustomerSerializer, BucketDepositConfigSerializer
 from .authentication import BearerTokenAuthentication
 
 
@@ -466,3 +466,43 @@ class MenuView(APIView):
             'code': 0,
             'data': menus
         }, status=status.HTTP_200_OK)
+
+
+# ==================== Bucket Deposit Config Views ====================
+
+class BucketDepositConfigView(APIView):
+    """
+    空桶押金配置视图
+    GET  /api/v1/bucket-deposit-config/  获取配置
+    PUT  /api/v1/bucket-deposit-config/  更新配置
+    """
+    def get(self, request):
+        config, created = BucketDepositConfig.objects.get_or_create(
+            id=1,
+            defaults={'amount_per_bucket': 30.00}
+        )
+        serializer = BucketDepositConfigSerializer(config)
+        return Response({
+            'code': 0,
+            'message': 'success',
+            'data': serializer.data
+        })
+
+    def put(self, request):
+        config, created = BucketDepositConfig.objects.get_or_create(
+            id=1,
+            defaults={'amount_per_bucket': 30.00}
+        )
+        serializer = BucketDepositConfigSerializer(config, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({
+                'code': 0,
+                'message': '更新成功',
+                'data': serializer.data
+            })
+        return Response({
+            'code': 1,
+            'message': '数据验证失败',
+            'data': serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)

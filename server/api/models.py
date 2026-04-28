@@ -135,3 +135,24 @@ class Customer(models.Model):
     @property
     def brand_name(self):
         return self.brand.name if self.brand else None
+
+
+class BucketDepositConfig(models.Model):
+    """
+    空桶押金配置
+    全局单例配置，始终只使用 id=1 的记录
+    """
+    amount_per_bucket = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=30.00,
+        verbose_name='每桶押金金额'
+    )
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
+
+    class Meta:
+        verbose_name = '空桶押金配置'
+        verbose_name_plural = '空桶押金配置'
+
+    def __str__(self):
+        return f'每桶押金: {self.amount_per_bucket}元'
