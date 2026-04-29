@@ -505,3 +505,36 @@ onMounted(() => {
     </div>
   </Page>
 </template>
+
+<style>
+/* Ant Design 风格排序图标：未排序时隐藏，悬停时显示淡色双箭头 */
+.vxe-table .vxe-sort--asc-btn,
+.vxe-table .vxe-sort--desc-btn {
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+/* 悬停表头时显示淡色双箭头，提示该列可排序 */
+.vxe-header--column:hover .vxe-sort--asc-btn,
+.vxe-header--column:hover .vxe-sort--desc-btn {
+  opacity: 0.3;
+}
+
+/* 升序激活：只显示上箭头（高亮） */
+.vxe-table .vxe-cell--sort .vxe-sort--asc-btn.sort--active {
+  opacity: 1;
+}
+.vxe-table .vxe-sort--asc-btn.sort--active + .vxe-sort--desc-btn {
+  opacity: 0;
+  visibility: hidden;
+}
+
+/* 降序激活：只显示下箭头（高亮） */
+.vxe-cell--sort-vertical-layout:has(.vxe-sort--desc-btn.sort--active) .vxe-sort--asc-btn {
+  opacity: 0;
+  visibility: hidden;
+}
+.vxe-table .vxe-cell--sort .vxe-sort--desc-btn.sort--active {
+  opacity: 1;
+}
+</style>
