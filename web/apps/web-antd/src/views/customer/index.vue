@@ -258,9 +258,9 @@ const gridOptions: VxeTableGridOptions<Customer> = {
     },
     { field: 'openDate', title: '开户日期', width: 120 },
     { field: 'lastDeliveryDate', title: '最后送水日期', width: 130 },
-    { field: 'storage_amount', title: '存水量', width: 100 },
-    { field: 'owed_empty_bucket', title: '欠空桶', width: 100 },
-    { field: 'total_water_usage', title: '总用水量', width: 100 },
+    { field: 'storage_amount', title: '存水量', width: 100, sortable: true, align: 'right' },
+    { field: 'owed_empty_bucket', title: '欠空桶', width: 100, sortable: true, align: 'right' },
+    { field: 'total_water_usage', title: '总用水量', width: 100, sortable: true, align: 'right' },
     {
       title: '操作',
       width: 80,
@@ -275,9 +275,15 @@ const gridOptions: VxeTableGridOptions<Customer> = {
     pageSize: 12,  // ✅ 修改为每页默认显示12条
     pageSizes: [12, 13, 14, 15],  // ✅ 更新分页选项为12/13/14/15
   },
+  sortConfig: {
+    // 点击整个表头区域（字段名文字）即可排序，不只是小箭头图标
+    trigger: 'default',
+    orders: ['asc', 'desc', null],
+  },
   proxyConfig: {
+    sort: true,
     ajax: {
-      query: async ({ page }) => {
+      query: async ({ page, sort }) => {
         
         loading.value = true;
         
@@ -293,7 +299,8 @@ const gridOptions: VxeTableGridOptions<Customer> = {
             params.keyword = searchKeyword.value;
           }
           
-          const data = await getCustomerListApi(params);
+          let data = await getCustomerListApi(params);
+          
           allCustomers.value = data;
           
           // 调试：打印第一条数据的结构
@@ -303,6 +310,29 @@ const gridOptions: VxeTableGridOptions<Customer> = {
             if (firstItem) {
               console.warn('客户数据所有键名:', Object.keys(firstItem));
             }
+          }
+          
+          // 如果有排序参数，对所有数据进行排序
+          if (sort && sort.field && sort.order) {
+            const order = sort.order;
+            const field = sort.field as keyof Customer;
+            data = [...data].sort((a, b) => {
+              const va = a[field];
+              const vb = b[field];
+              // 处理 null/undefined
+              if (va === null || va === undefined) return order === 'asc' ? -1 : 1;
+              if (vb === null || vb === undefined) return order === 'asc' ? 1 : -1;
+              // 数字排序
+              if (typeof va === 'number' && typeof vb === 'number') {
+                return order === 'asc' ? va - vb : vb - va;
+              }
+              // 字符串排序
+              const sa = String(va);
+              const sb = String(vb);
+              return order === 'asc'
+                ? sa.localeCompare(sb, 'zh-CN')
+                : sb.localeCompare(sa, 'zh-CN');
+            });
           }
           
           // 模拟分页（后端暂未支持分页，前端处理）
