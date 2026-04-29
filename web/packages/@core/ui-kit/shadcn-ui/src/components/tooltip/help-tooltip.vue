@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { cn } from '@vben-core/shared/utils';
 
-import { CircleHelp } from 'lucide-vue-next';
+import { Info } from 'lucide-vue-next';
 
 import Tooltip from './tooltip.vue';
 
@@ -16,7 +16,7 @@ defineProps<{ triggerClass?: string }>();
   <Tooltip :delay-duration="300" side="right">
     <template #trigger>
       <slot name="trigger">
-        <CircleHelp
+        <Info
           :class="
             cn(
               'text-foreground/80 hover:text-foreground inline-flex size-5 cursor-pointer',

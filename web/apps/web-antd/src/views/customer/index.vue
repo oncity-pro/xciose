@@ -7,7 +7,7 @@ import { computed, onMounted, ref, watch, nextTick } from 'vue';
 
 import { Page, useVbenModal } from '@vben/common-ui';
 import { Plus } from '@vben/icons';
-import { Crown, Eye, MoreHorizontal, Package, Pencil, Search, Trash2, User, UserPlus, Users, UserX } from 'lucide-vue-next';
+import { Award, Eye, MoreHorizontal, Package, Pencil, Search, Trash2, User, UserPlus, Users, UserX } from 'lucide-vue-next';
 
 import { Button, Dropdown, Input, Menu, message, Modal } from 'ant-design-vue';
 
@@ -371,7 +371,7 @@ onMounted(() => {
             {{ stats.vipChange >= 0 ? '↑' : '↓' }} 较上月 {{ Math.abs(stats.vipChange) }}
           </div>
         </div>
-        <Crown class="size-10 text-yellow-400/30 dark:text-yellow-400/20" />
+        <Award class="size-10 text-yellow-400/30 dark:text-yellow-400/20" />
       </div>
       <div class="flex-1 rounded-lg bg-green-50 p-4 dark:bg-green-950/30 flex items-center justify-between">
         <div>
