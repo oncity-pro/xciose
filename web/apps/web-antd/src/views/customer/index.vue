@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import type { EchartsUIType } from '@vben/plugins/echarts';
 import type { VxeTableGridOptions } from '#/adapter/vxe-table';
 import type { Customer } from '#/api/customer';
 import type { WaterBrand } from '#/api/water-brand';
@@ -6,6 +7,7 @@ import type { WaterBrand } from '#/api/water-brand';
 import { computed, onMounted, ref, watch, nextTick } from 'vue';
 
 import { Page, useVbenModal } from '@vben/common-ui';
+import { EchartsUI, useEcharts } from '@vben/plugins/echarts';
 import { Plus } from '@vben/icons';
 import { Award, Eye, MoreHorizontal, Package, Pencil, Search, Trash2, User, UserPlus, Users, UserX } from 'lucide-vue-next';
 
@@ -136,7 +138,164 @@ async function loadBrands() {
   }
 }
 
-// 创建弹窗
+// 品牌饼图
+const brandChartRef = ref<EchartsUIType>();
+const { renderEcharts: renderBrandChart } = useEcharts(brandChartRef);
+
+// 品牌销量柱形图
+const salesChartRef = ref<EchartsUIType>();
+const { renderEcharts: renderSalesChart } = useEcharts(salesChartRef);
+
+const brandPieData = computed(() => {
+  const map = new Map<number, number>();
+  allCustomers.value.forEach((c) => {
+    const brandId = c.brand ?? 0;
+    map.set(brandId, (map.get(brandId) ?? 0) + 1);
+  });
+  const result = Array.from(map.entries())
+    .map(([brandId, count]) => ({
+      name: brandId ? (brandMap.value.get(brandId) ?? `品牌${brandId}`) : '未设置品牌',
+      value: count,
+    }))
+    .sort((a, b) => b.value - a.value);
+  return result;
+});
+
+const brandSalesData = computed(() => {
+  const map = new Map<number, number>();
+  allCustomers.value.forEach((c) => {
+    const brandId = c.brand ?? 0;
+    const usage = c.total_water_usage ?? 0;
+    map.set(brandId, (map.get(brandId) ?? 0) + usage);
+  });
+  const result = Array.from(map.entries())
+    .map(([brandId, total]) => ({
+      name: brandId ? (brandMap.value.get(brandId) ?? `品牌${brandId}`) : '未设置品牌',
+      value: total,
+    }))
+    .sort((a, b) => b.value - a.value);
+  return result;
+});
+
+// 渲染/更新品牌饼图
+function updateBrandChart() {
+  const data = brandPieData.value;
+  if (data.length === 0) return;
+
+  renderBrandChart({
+    tooltip: {
+      formatter: '{b}: {c}户 ({d}%)',
+      trigger: 'item',
+    },
+    legend: {
+      bottom: '0%',
+      itemGap: 8,
+      itemWidth: 10,
+      itemHeight: 10,
+      left: 'center',
+      textStyle: {
+        fontSize: 11,
+      },
+    },
+    series: [
+      {
+        animationEasing: 'cubicOut',
+        animationType: 'expansion',
+        avoidLabelOverlap: true,
+        center: ['55%', '42%'],
+        data,
+        emphasis: {
+          itemStyle: {
+            shadowBlur: 10,
+            shadowColor: 'rgba(0, 0, 0, 0.5)',
+            shadowOffsetX: 0,
+          },
+          label: {
+            fontSize: 12,
+            fontWeight: 'bold',
+            show: true,
+          },
+        },
+        itemStyle: {
+          borderColor: '#fff',
+          borderRadius: 6,
+          borderWidth: 2,
+        },
+        label: {
+          fontSize: 10,
+          formatter: '{b}\n{d}%',
+          minMargin: 4,
+          position: 'outside',
+          show: true,
+        },
+        labelLine: {
+          length: 8,
+          length2: 6,
+          minTurnAngle: 90,
+          show: true,
+        },
+        radius: ['28%', '52%'],
+        type: 'pie',
+      },
+    ],
+  });
+}
+
+// 渲染/更新品牌销量柱形图
+function updateSalesChart() {
+  const data = brandSalesData.value;
+  if (data.length === 0) return;
+
+  renderSalesChart({
+    grid: {
+      bottom: '18%',
+      left: '12%',
+      right: '8%',
+      top: '12%',
+    },
+    tooltip: {
+      formatter: '{b}: {c}桶',
+      trigger: 'axis',
+    },
+    xAxis: {
+      axisLabel: {
+        fontSize: 10,
+        interval: 0,
+        rotate: data.length > 4 ? 30 : 0,
+      },
+      axisTick: { show: false },
+      data: data.map((d) => d.name),
+      type: 'category',
+    },
+    yAxis: {
+      axisLabel: { fontSize: 10 },
+      splitLine: {
+        lineStyle: { type: 'dashed' },
+      },
+      type: 'value',
+    },
+    series: [
+      {
+        barWidth: '50%',
+        data: data.map((d) => d.value),
+        itemStyle: { borderRadius: [4, 4, 0, 0] },
+        label: {
+          fontSize: 10,
+          position: 'top',
+          show: true,
+        },
+        type: 'bar',
+      },
+    ],
+  });
+}
+
+watch([allCustomers, brandMap], () => {
+  if (allCustomers.value.length > 0) {
+    updateBrandChart();
+    updateSalesChart();
+  }
+}, { flush: 'post' });
 const [FormModal, formModalApi] = useVbenModal({
   connectedComponent: Form,
   destroyOnClose: true,
@@ -362,7 +521,6 @@ const gridOptions: VxeTableGridOptions<Customer> = {
     // 隐藏默认搜索按钮（搜索框已自定义放到 toolbar-tools 中）
     search: false,
     refresh: true,
-    zoom: true,
     custom: true,
   },
 };
@@ -445,7 +603,10 @@ onMounted(() => {
       </div>
       </div>
 
-      <div class="min-h-0 flex-1">
+      <!-- 客户列表 + 品牌饼图 -->
+      <div class="min-h-0 flex-1 flex gap-4">
+        <!-- 客户列表 -->
+        <div class="min-h-0 flex-1">
         <Grid table-title="客户列表" :loading="loading" class="h-full">
           <template #toolbar-tools>
         <Button type="primary" @click="onCreate">
@@ -501,6 +662,21 @@ onMounted(() => {
         </Dropdown>
           </template>
         </Grid>
+        </div>
+
+        <!-- 右侧图表区：饼图 + 柱形图 -->
+        <div class="w-[300px] shrink-0 flex flex-col gap-4">
+          <!-- 品牌饼图 -->
+          <div class="rounded-lg bg-white p-3 dark:bg-gray-900 flex flex-col flex-1 min-h-0">
+            <div class="text-sm text-gray-500 dark:text-gray-400 mb-1 shrink-0">品牌占比</div>
+            <EchartsUI ref="brandChartRef" height="100%" class="min-h-0 flex-1" />
+          </div>
+          <!-- 品牌销量 -->
+          <div class="rounded-lg bg-white p-3 dark:bg-gray-900 flex flex-col flex-1 min-h-0">
+            <div class="text-sm text-gray-500 dark:text-gray-400 mb-1 shrink-0">品牌销量</div>
+            <EchartsUI ref="salesChartRef" height="100%" class="min-h-0 flex-1" />
+          </div>
+        </div>
       </div>
     </div>
   </Page>
