@@ -1,10 +1,9 @@
 <script lang="ts" setup>
-import type { VbenFormProps } from '#/adapter/form';
 import type { VxeTableGridOptions } from '#/adapter/vxe-table';
 import type { Customer } from '#/api/customer';
 import type { WaterBrand } from '#/api/water-brand';
 
-import { defineComponent, h, onMounted, ref, watch, nextTick } from 'vue';
+import { onMounted, ref, watch, nextTick } from 'vue';
 
 import { Page, useVbenModal } from '@vben/common-ui';
 import { Plus } from '@vben/icons';
@@ -152,12 +151,6 @@ function refreshGrid() {
   gridApi.query();
 }
 
-// 搜索表单配置（隐藏默认表单，搜索框放到 toolbar-tools 中）
-const formOptions: VbenFormProps = {
-  schema: [],
-  showDefaultActions: false,
-};
-
 // 表格配置
 const gridOptions: VxeTableGridOptions<Customer> = {
   rowConfig: {
@@ -200,7 +193,7 @@ const gridOptions: VxeTableGridOptions<Customer> = {
   },
   proxyConfig: {
     ajax: {
-      query: async ({ page }, formValues) => {
+      query: async ({ page }) => {
         
         loading.value = true;
         
@@ -259,7 +252,7 @@ const gridOptions: VxeTableGridOptions<Customer> = {
   },
 };
 
-const [Grid, gridApi] = useVbenVxeGrid({ formOptions, gridOptions });
+const [Grid, gridApi] = useVbenVxeGrid({ gridOptions });
 
 // 组件挂载时加载品牌数据
 onMounted(() => {
