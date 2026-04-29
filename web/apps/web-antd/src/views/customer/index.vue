@@ -268,7 +268,7 @@ const gridOptions: VxeTableGridOptions<Customer> = {
       slots: { default: 'action' },
     },
   ],
-  height: 'auto',
+  height: '100%',
   keepSource: true,
   pagerConfig: {
     enabled: true,
@@ -350,8 +350,9 @@ onMounted(() => {
     <FormModal :customer-data="currentCustomer" @success="refreshGrid" />
     <DetailModal :customer-data="currentDetailCustomer" :brand-name="detailBrandName" />
 
-    <!-- 统计卡片 -->
-    <div class="mb-4 flex gap-4">
+    <div class="flex h-full flex-col gap-4">
+      <!-- 统计卡片 -->
+      <div class="flex shrink-0 gap-4">
       <div class="flex-1 rounded-lg bg-blue-50 p-4 dark:bg-blue-950/30 flex items-center justify-between">
         <div>
           <div class="text-sm text-gray-500 dark:text-blue-300">客户总数</div>
@@ -412,10 +413,11 @@ onMounted(() => {
         </div>
         <UserX class="size-10 text-red-400/30 dark:text-red-400/20" />
       </div>
-    </div>
+      </div>
 
-    <Grid :loading="loading">
-      <template #toolbar-tools>
+      <div class="min-h-0 flex-1">
+        <Grid table-title="客户列表" :loading="loading" class="h-full">
+          <template #toolbar-tools>
         <Button type="primary" @click="onCreate">
           <Plus class="size-5" />
           新增客户
@@ -467,7 +469,9 @@ onMounted(() => {
             </Menu>
           </template>
         </Dropdown>
-      </template>
-    </Grid>
+          </template>
+        </Grid>
+      </div>
+    </div>
   </Page>
 </template>
