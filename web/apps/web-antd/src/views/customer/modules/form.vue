@@ -69,7 +69,7 @@ const [Form, formApi] = useVbenForm({
     {
       component: 'Input',
       componentProps: {
-        placeholder: '请输入姓名和地址',
+        placeholder: '请输入姓名或地址',
       },
       fieldName: 'name',
       label: '姓名地址',
