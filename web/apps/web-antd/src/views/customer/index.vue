@@ -9,7 +9,7 @@ import { computed, onMounted, ref, watch, nextTick } from 'vue';
 import { Page, useVbenModal } from '@vben/common-ui';
 import { EchartsUI, useEcharts } from '@vben/plugins/echarts';
 import { Plus } from '@vben/icons';
-import { Award, Eye, MoreHorizontal, Package, Pencil, Search, Trash2, User, UserPlus, Users, UserX } from 'lucide-vue-next';
+import { Award, Droplets, Eye, MoreHorizontal, Package, Pencil, Search, Trash2, User, UserPlus, Users, UserX } from 'lucide-vue-next';
 
 import { Button, Dropdown, Input, Menu, message, Modal } from 'ant-design-vue';
 
@@ -387,6 +387,28 @@ function refreshGrid() {
   gridApi.query();
 }
 
+// 存水量相关计算
+function getStorageRemaining(row: Customer): number {
+  const total = row.storage_amount || 0;
+  const used = row.total_water_usage || 0;
+  return Math.max(0, total - used);
+}
+
+function getStoragePercent(row: Customer): number {
+  const total = row.storage_amount || 0;
+  if (total <= 0) return 0;
+  const remaining = getStorageRemaining(row);
+  return Math.round((remaining / total) * 100);
+}
+
+function getStorageBarColor(row: Customer): string {
+  const percent = getStoragePercent(row);
+  if (percent === 0) return 'bg-gray-400';
+  if (percent <= 20) return 'bg-red-500';
+  if (percent <= 50) return 'bg-orange-500';
+  return 'bg-blue-500';
+}
+
 // 表格配置
 const gridOptions: VxeTableGridOptions<Customer> = {
   rowConfig: {
@@ -410,7 +432,7 @@ const gridOptions: VxeTableGridOptions<Customer> = {
     },
     { field: 'openDate', title: '开户日期', width: 120 },
     { field: 'lastDeliveryDate', title: '最后送水日期', width: 130 },
-    { field: 'storage_amount', title: '存水量', width: 100, sortable: true, align: 'right' },
+    { field: 'storage_amount', title: '存水量', width: 150, sortable: true, align: 'center', slots: { default: 'storage' } },
     { field: 'owed_empty_bucket', title: '欠空桶', width: 100, sortable: true, align: 'right' },
     { field: 'bucket_deposit_display', title: '桶押金', width: 150, align: 'center' },
     { field: 'total_water_usage', title: '总用水量', width: 100, sortable: true, align: 'right' },
@@ -623,6 +645,20 @@ onMounted(() => {
             <!-- 自定义品牌列的渲染 -->
             <template #brand="{ row }">
               {{ row.brand ? brandMap.get(row.brand) : '-' }}
+            </template>
+
+            <!-- 自定义存水量列的渲染 -->
+            <template #storage="{ row }">
+              <div class="flex items-center justify-center gap-1.5">
+                <span class="text-xs whitespace-nowrap">{{ getStorageRemaining(row) }}</span>
+                <div class="w-12 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                  <div
+                    class="h-full rounded-full transition-all"
+                    :class="getStorageBarColor(row)"
+                    :style="{ width: getStoragePercent(row) + '%' }"
+                  />
+                </div>
+              </div>
             </template>
 
             <!-- 操作列 -->
