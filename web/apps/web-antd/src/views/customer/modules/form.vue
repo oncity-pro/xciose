@@ -61,6 +61,13 @@ const [Form, formApi] = useVbenForm({
       component: 'Input',
       componentProps: {
         placeholder: '请输入客户编号',
+        onBlur: (e: any) => {
+          const val = e?.target?.value || '';
+          const num = val.replace(/\D/g, '');
+          if (num) {
+            formApi.setValues({ id: num.padStart(4, '0') });
+          }
+        },
       },
       fieldName: 'id',
       label: '客户编号',
