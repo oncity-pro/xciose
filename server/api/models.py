@@ -81,7 +81,7 @@ class Customer(models.Model):
     """
     # 客户类型选择
     CUSTOMER_TYPE_CHOICES = [
-        ('vip', 'VIP客户'),
+        ('vip', '套餐客户'),
         ('normal', '普通客户'),
         ('pickup', '自提客户'),
         ('closed', '已注销'),

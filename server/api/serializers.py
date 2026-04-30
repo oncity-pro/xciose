@@ -25,14 +25,35 @@ class WaterBrandSerializer(serializers.ModelSerializer):
 class CustomerSerializer(serializers.ModelSerializer):
     customer_type_display = serializers.CharField(source='customer_type', read_only=True)
     brand_name = serializers.SerializerMethodField(read_only=True)
+    bucket_deposit_display = serializers.SerializerMethodField(read_only=True)
     # 驼峰命名字段在 to_representation 中手动处理
 
     class Meta:
         model = Customer
         fields = ['id', 'name', 'customer_type', 'customer_type_display', 'brand', 'brand_name',
                   'open_date', 'last_delivery_date', 'close_date',
-                  'phone', 'remark', 'is_active', 'created_at', 'updated_at', 'storage_amount', 'owed_empty_bucket', 'total_water_usage', 'vip_scheme']
+                  'phone', 'remark', 'is_active', 'created_at', 'updated_at', 'storage_amount', 'owed_empty_bucket', 'total_water_usage', 'vip_scheme',
+                  'bucket_deposit_display']
         read_only_fields = ['created_at', 'updated_at']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._deposit_per_bucket = self._load_deposit_config()
+
+    @staticmethod
+    def _load_deposit_config():
+        try:
+            config = BucketDepositConfig.objects.first()
+            return config.amount_per_bucket if config else 30
+        except Exception:
+            return 30
+
+    def get_bucket_deposit_display(self, obj):
+        owed = obj.owed_empty_bucket or 0
+        if owed <= 0:
+            return '-'
+        total = int(owed * self._deposit_per_bucket)
+        return f'押{owed}桶共{total}元'
 
     def validate_id(self, value):
         """验证客户编号唯一性"""

@@ -7,7 +7,7 @@ import type {
 } from '#/api/customer';
 import type { WaterBrand } from '#/api/water-brand';
 
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 
 import { useVbenModal } from '@vben/common-ui';
 
@@ -23,6 +23,7 @@ import { getBucketDepositConfigApi } from '#/api/settings';
 import { 
   getWaterBrandListApi, 
 } from '#/api/water-brand';
+import { Pencil, UserPlus } from 'lucide-vue-next';
 
 // 定义 props 接收客户数据（作为备用方案）
 const props = defineProps<{
@@ -33,6 +34,11 @@ const emit = defineEmits<{ success: [] }>();
 
 // 每桶押金金额（从全局配置获取）
 const depositPerBucket = ref<number>(30);
+
+// 是否为编辑模式
+const isEdit = computed(() => {
+  return props.customerData && Object.keys(props.customerData).length > 0;
+});
 
 // 品牌列表 - 现在由ApiSelect组件内部处理
 // const brandOptions = ref<Array<{ label: string; value: number }>>([]);
@@ -76,11 +82,21 @@ const [Form, formApi] = useVbenForm({
     {
       component: 'Input',
       componentProps: {
+        placeholder: '请输入联系电话',
+      },
+      fieldName: 'phone',
+      label: '联系电话',
+      // 移除必填规则
+    },
+    {
+      component: 'Input',
+      componentProps: {
         placeholder: '请输入姓名或地址',
       },
       fieldName: 'name',
       label: '姓名地址',
       rules: 'required',
+      formItemClass: 'col-span-2',
     },
     {
       component: 'Select',
@@ -91,6 +107,20 @@ const [Form, formApi] = useVbenForm({
       fieldName: 'customer_type',
       label: '客户类型',
       defaultValue: 'normal',
+    },
+    {
+      component: 'ApiSelect',
+      fieldName: 'brand',
+      label: '桶装水品牌',
+      componentProps: {
+        api: getWaterBrandListApi,
+        labelField: 'name',
+        valueField: 'id',
+        placeholder: '请选择品牌',
+        allowClear: true,
+        popupMatchSelectWidth: false, // 下拉框不与选择框宽度匹配
+        dropdownStyle: { minWidth: '200px' }, // 设置下拉框最小宽度
+      },
     },
     {
       component: 'RadioGroup',
@@ -119,6 +149,7 @@ const [Form, formApi] = useVbenForm({
       },
       fieldName: 'vip_scheme',
       label: 'VIP优惠方案',
+      formItemClass: 'col-span-2',
     },
     {
       component: 'InputNumber',
@@ -130,11 +161,12 @@ const [Form, formApi] = useVbenForm({
       label: '存水量',
       rules: 'required',  // 设置为必填
       defaultValue: 0,  // 设置默认值为0
+      formItemClass: 'col-span-2',
     },
     {
       component: 'InputNumber',
       componentProps: {
-        placeholder: '请输入欠空桶数',
+        placeholder: '请输入押桶数',
         min: 0,
         onChange: (value: number | null) => {
           const owed = value || 0;
@@ -144,7 +176,7 @@ const [Form, formApi] = useVbenForm({
         },
       },
       fieldName: 'owed_empty_bucket',
-      label: '欠空桶',
+      label: '押桶数',
       rules: 'required',  // 设置为必填
     },
     {
@@ -155,21 +187,7 @@ const [Form, formApi] = useVbenForm({
         addonAfter: '元',
       },
       fieldName: 'empty_bucket_deposit',
-      label: '空桶押金',
-    },
-    {
-      component: 'ApiSelect',
-      fieldName: 'brand',
-      label: '水品牌',
-      componentProps: {
-        api: getWaterBrandListApi,
-        labelField: 'name',
-        valueField: 'id',
-        placeholder: '请选择品牌',
-        allowClear: true,
-        popupMatchSelectWidth: false, // 下拉框不与选择框宽度匹配
-        dropdownStyle: { minWidth: '200px' }, // 设置下拉框最小宽度
-      },
+      label: '合计',
     },
     {
       component: 'DatePicker',
@@ -185,23 +203,14 @@ const [Form, formApi] = useVbenForm({
     {
       component: 'DatePicker',
       componentProps: {
-        placeholder: '请选择最后送水日期',
+        placeholder: '请选择送水日期',
         format: 'YYYY-MM-DD',
         valueFormat: 'YYYY-MM-DD',
         allowClear: true,
       },
       fieldName: 'last_delivery_date',
-      label: '最后送水日期',
+      label: '送水日期',
       rules: 'required',  // 设置为必填
-    },
-    {
-      component: 'Input',
-      componentProps: {
-        placeholder: '请输入联系电话',
-      },
-      fieldName: 'phone',
-      label: '联系电话',
-      // 移除必填规则
     },
     // 删除详细地址字段
     {
@@ -212,10 +221,15 @@ const [Form, formApi] = useVbenForm({
       },
       fieldName: 'remark',
       label: '备注',
+      formItemClass: 'col-span-2',
     },
   ],
   layout: 'horizontal',
+  wrapperClass: 'grid-cols-2',
   showDefaultActions: false,  // 隐藏表单自带的提交和重置按钮
+  commonConfig: {
+    colon: true,
+  },
 });
 
 // 弹窗配置
@@ -381,7 +395,7 @@ const [Modal, modalApi] = useVbenModal({
         await formApi.setValues({
           empty_bucket_deposit: Number((owed * depositPerBucket.value).toFixed(2)),
         });
-        modalApi.setState({ title: '编辑客户' });
+        // 标题通过插槽设置
       } else {
         // 新增模式：重置表单并设置默认值
         console.warn('进入新增模式，重置表单');
@@ -397,7 +411,7 @@ const [Modal, modalApi] = useVbenModal({
           brand: 2  // 假设怡宝的ID是2
         });
         
-        modalApi.setState({ title: '新增客户' });
+        // 标题通过插槽设置
       }
     }
   },
@@ -406,6 +420,13 @@ const [Modal, modalApi] = useVbenModal({
 
 <template>
   <Modal :footer="true">
+    <template #title>
+      <span class="flex items-center gap-2">
+        <UserPlus v-if="!isEdit" class="size-5" />
+        <Pencil v-else class="size-5" />
+        {{ isEdit ? '编辑客户' : '新增客户' }}
+      </span>
+    </template>
     <Form />
   </Modal>
 </template>

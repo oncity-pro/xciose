@@ -87,7 +87,7 @@ function getCustomerTypeColor(type?: string) {
 function getCustomerTypeLabel(type?: string) {
   switch (type) {
     case 'vip':
-      return 'VIP客户';
+      return '套餐客户';
     case 'normal':
       return '普通客户';
     case 'pickup':
@@ -157,20 +157,21 @@ function getCustomerTypeLabel(type?: string) {
     </Descriptions>
 
     <!-- 送水记录 -->
-    <Card
-      v-if="customer"
-      title="送水记录"
-      :loading="deliveryLoading"
-      class="mt-6"
-      :body-style="{ padding: '12px' }"
-    >
-      <Table
-        :columns="deliveryColumns"
-        :data-source="deliveryRecords"
-        :pagination="false"
-        size="small"
-        :locale="{ emptyText: '暂无送水记录' }"
-      />
-    </Card>
+    <div class="mt-5">
+      <Card
+        v-if="customer"
+        title="送水记录"
+        :loading="deliveryLoading"
+        :body-style="{ padding: '12px' }"
+      >
+        <Table
+          :columns="deliveryColumns"
+          :data-source="deliveryRecords"
+          :pagination="false"
+          size="small"
+          :locale="{ emptyText: '暂无送水记录' }"
+        />
+      </Card>
+    </div>
   </Modal>
 </template>

@@ -11,7 +11,7 @@ import { requestClient } from './request';
  * 客户类型选项
  */
 export const CUSTOMER_TYPE_OPTIONS = [
-  { label: 'VIP客户', value: 'vip' },
+  { label: '套餐客户', value: 'vip' },
   { label: '普通客户', value: 'normal' },
   { label: '自提客户', value: 'pickup' },
   { label: '已注销', value: 'closed' },
@@ -55,6 +55,8 @@ export interface Customer {
   totalWaterUsage?: number; // 驼峰命名（供前端使用）
   // 新增字段：VIP优惠方案
   vip_scheme?: '10_1' | '20_3' | '30_5' | '50_10' | null;
+  // 桶押金显示
+  bucket_deposit_display?: string;
 }
 
 export interface CustomerListParams {

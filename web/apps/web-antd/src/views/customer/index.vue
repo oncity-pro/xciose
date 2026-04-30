@@ -412,6 +412,7 @@ const gridOptions: VxeTableGridOptions<Customer> = {
     { field: 'lastDeliveryDate', title: '最后送水日期', width: 130 },
     { field: 'storage_amount', title: '存水量', width: 100, sortable: true, align: 'right' },
     { field: 'owed_empty_bucket', title: '欠空桶', width: 100, sortable: true, align: 'right' },
+    { field: 'bucket_deposit_display', title: '桶押金', width: 150, align: 'center' },
     { field: 'total_water_usage', title: '总用水量', width: 100, sortable: true, align: 'right' },
     {
       title: '操作',
@@ -548,7 +549,7 @@ onMounted(() => {
           </div>
           <div class="flex-1 rounded-lg bg-yellow-50 p-4 dark:bg-yellow-950/30 flex items-center justify-between">
             <div>
-              <div class="text-sm text-gray-500 dark:text-yellow-300">VIP客户</div>
+              <div class="text-sm text-gray-500 dark:text-yellow-300">套餐客户</div>
               <div class="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{{ stats.vipCount }}</div>
               <div class="text-xs mt-1" :class="stats.vipChange >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
                 {{ stats.vipChange >= 0 ? '↑' : '↓' }} 较上月 {{ Math.abs(stats.vipChange) }}
