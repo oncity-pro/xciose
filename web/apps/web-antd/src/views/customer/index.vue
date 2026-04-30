@@ -531,144 +531,144 @@ onMounted(() => {
     <FormModal :customer-data="currentCustomer" @success="refreshGrid" />
     <DetailModal :customer-data="currentDetailCustomer" :brand-name="detailBrandName" />
 
-    <div class="flex h-full flex-col gap-4">
-      <!-- 统计卡片 -->
-      <div class="flex shrink-0 gap-4">
-      <div class="flex-1 rounded-lg bg-blue-50 p-4 dark:bg-blue-950/30 flex items-center justify-between">
-        <div>
-          <div class="text-sm text-gray-500 dark:text-blue-300">客户总数</div>
-          <div class="text-2xl font-bold text-blue-600 dark:text-blue-400">{{ stats.total }}</div>
-          <div class="text-xs mt-1" :class="stats.totalChange >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
-            {{ stats.totalChange >= 0 ? '↑' : '↓' }} 较上月 {{ Math.abs(stats.totalChange) }}
+    <div class="flex h-full gap-4">
+      <!-- 左侧：统计卡片 + 客户列表上下对齐 -->
+      <div class="flex-1 flex flex-col gap-4 min-h-0">
+        <!-- 统计卡片 -->
+        <div class="flex shrink-0 gap-4">
+          <div class="flex-1 rounded-lg bg-blue-50 p-4 dark:bg-blue-950/30 flex items-center justify-between">
+            <div>
+              <div class="text-sm text-gray-500 dark:text-blue-300">客户总数</div>
+              <div class="text-2xl font-bold text-blue-600 dark:text-blue-400">{{ stats.total }}</div>
+              <div class="text-xs mt-1" :class="stats.totalChange >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
+                {{ stats.totalChange >= 0 ? '↑' : '↓' }} 较上月 {{ Math.abs(stats.totalChange) }}
+              </div>
+            </div>
+            <Users class="size-10 text-blue-500 dark:text-blue-400" />
+          </div>
+          <div class="flex-1 rounded-lg bg-yellow-50 p-4 dark:bg-yellow-950/30 flex items-center justify-between">
+            <div>
+              <div class="text-sm text-gray-500 dark:text-yellow-300">VIP客户</div>
+              <div class="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{{ stats.vipCount }}</div>
+              <div class="text-xs mt-1" :class="stats.vipChange >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
+                {{ stats.vipChange >= 0 ? '↑' : '↓' }} 较上月 {{ Math.abs(stats.vipChange) }}
+              </div>
+            </div>
+            <Award class="size-10 text-yellow-500 dark:text-yellow-400" />
+          </div>
+          <div class="flex-1 rounded-lg bg-green-50 p-4 dark:bg-green-950/30 flex items-center justify-between">
+            <div>
+              <div class="text-sm text-gray-500 dark:text-green-300">普通客户</div>
+              <div class="text-2xl font-bold text-green-600 dark:text-green-400">{{ stats.normalCount }}</div>
+              <div class="text-xs mt-1" :class="stats.normalChange >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
+                {{ stats.normalChange >= 0 ? '↑' : '↓' }} 较上月 {{ Math.abs(stats.normalChange) }}
+              </div>
+            </div>
+            <User class="size-10 text-green-500 dark:text-green-400" />
+          </div>
+          <div class="flex-1 rounded-lg bg-cyan-50 p-4 dark:bg-cyan-950/30 flex items-center justify-between">
+            <div>
+              <div class="text-sm text-gray-500 dark:text-cyan-300">自提客户</div>
+              <div class="text-2xl font-bold text-cyan-600 dark:text-cyan-400">{{ stats.pickupCount }}</div>
+              <div class="text-xs mt-1" :class="stats.pickupChange >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
+                {{ stats.pickupChange >= 0 ? '↑' : '↓' }} 较上月 {{ Math.abs(stats.pickupChange) }}
+              </div>
+            </div>
+            <Package class="size-10 text-cyan-500 dark:text-cyan-400" />
+          </div>
+          <div class="flex-1 rounded-lg bg-emerald-50 p-4 dark:bg-emerald-950/30 flex items-center justify-between">
+            <div>
+              <div class="text-sm text-gray-500 dark:text-emerald-300">本月新增</div>
+              <div class="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{{ stats.newThisMonth }}</div>
+              <div class="text-xs mt-1" :class="stats.newChange >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
+                {{ stats.newChange >= 0 ? '↑' : '↓' }} 较上月 {{ Math.abs(stats.newChange) }}
+              </div>
+            </div>
+            <UserPlus class="size-10 text-emerald-500 dark:text-emerald-400" />
+          </div>
+          <div class="flex-1 rounded-lg bg-red-50 p-4 dark:bg-red-950/30 flex items-center justify-between">
+            <div>
+              <div class="text-sm text-gray-500 dark:text-red-300">本月注销</div>
+              <div class="text-2xl font-bold text-red-600 dark:text-red-400">{{ stats.closedThisMonth }}</div>
+              <div class="text-xs mt-1" :class="stats.closedChange >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
+                {{ stats.closedChange >= 0 ? '↑' : '↓' }} 较上月 {{ Math.abs(stats.closedChange) }}
+              </div>
+            </div>
+            <UserX class="size-10 text-red-500 dark:text-red-400" />
           </div>
         </div>
-        <Users class="size-10 text-blue-500 dark:text-blue-400" />
-      </div>
-      <div class="flex-1 rounded-lg bg-yellow-50 p-4 dark:bg-yellow-950/30 flex items-center justify-between">
-        <div>
-          <div class="text-sm text-gray-500 dark:text-yellow-300">VIP客户</div>
-          <div class="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{{ stats.vipCount }}</div>
-          <div class="text-xs mt-1" :class="stats.vipChange >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
-            {{ stats.vipChange >= 0 ? '↑' : '↓' }} 较上月 {{ Math.abs(stats.vipChange) }}
-          </div>
-        </div>
-        <Award class="size-10 text-yellow-500 dark:text-yellow-400" />
-      </div>
-      <div class="flex-1 rounded-lg bg-green-50 p-4 dark:bg-green-950/30 flex items-center justify-between">
-        <div>
-          <div class="text-sm text-gray-500 dark:text-green-300">普通客户</div>
-          <div class="text-2xl font-bold text-green-600 dark:text-green-400">{{ stats.normalCount }}</div>
-          <div class="text-xs mt-1" :class="stats.normalChange >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
-            {{ stats.normalChange >= 0 ? '↑' : '↓' }} 较上月 {{ Math.abs(stats.normalChange) }}
-          </div>
-        </div>
-        <User class="size-10 text-green-500 dark:text-green-400" />
-      </div>
-      <div class="flex-1 rounded-lg bg-cyan-50 p-4 dark:bg-cyan-950/30 flex items-center justify-between">
-        <div>
-          <div class="text-sm text-gray-500 dark:text-cyan-300">自提客户</div>
-          <div class="text-2xl font-bold text-cyan-600 dark:text-cyan-400">{{ stats.pickupCount }}</div>
-          <div class="text-xs mt-1" :class="stats.pickupChange >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
-            {{ stats.pickupChange >= 0 ? '↑' : '↓' }} 较上月 {{ Math.abs(stats.pickupChange) }}
-          </div>
-        </div>
-        <Package class="size-10 text-cyan-500 dark:text-cyan-400" />
-      </div>
-      <div class="flex-1 rounded-lg bg-emerald-50 p-4 dark:bg-emerald-950/30 flex items-center justify-between">
-        <div>
-          <div class="text-sm text-gray-500 dark:text-emerald-300">本月新增</div>
-          <div class="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{{ stats.newThisMonth }}</div>
-          <div class="text-xs mt-1" :class="stats.newChange >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
-            {{ stats.newChange >= 0 ? '↑' : '↓' }} 较上月 {{ Math.abs(stats.newChange) }}
-          </div>
-        </div>
-        <UserPlus class="size-10 text-emerald-500 dark:text-emerald-400" />
-      </div>
-      <div class="flex-1 rounded-lg bg-red-50 p-4 dark:bg-red-950/30 flex items-center justify-between">
-        <div>
-          <div class="text-sm text-gray-500 dark:text-red-300">本月注销</div>
-          <div class="text-2xl font-bold text-red-600 dark:text-red-400">{{ stats.closedThisMonth }}</div>
-          <div class="text-xs mt-1" :class="stats.closedChange >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
-            {{ stats.closedChange >= 0 ? '↑' : '↓' }} 较上月 {{ Math.abs(stats.closedChange) }}
-          </div>
-        </div>
-        <UserX class="size-10 text-red-500 dark:text-red-400" />
-      </div>
-      </div>
 
-      <!-- 客户列表 + 品牌饼图 -->
-      <div class="min-h-0 flex-1 flex gap-4">
         <!-- 客户列表 -->
         <div class="min-h-0 flex-1">
-        <Grid table-title="客户列表" :loading="loading" class="h-full">
-          <template #toolbar-tools>
-        <Button type="primary" @click="onCreate">
-          <Plus class="size-5" />
-          新增客户
-        </Button>
-        <Input
-          v-model:value="searchKeyword"
-          allow-clear
-          class="ml-4"
-          placeholder="输入编号或姓名地址搜索"
-          style="width: 240px"
-        >
-          <template #prefix>
-            <Search class="size-4 text-gray-400" />
-          </template>
-        </Input>
-      </template>
-      
-      <!-- 自定义品牌列的渲染 -->
-      <template #brand="{ row }">
-        {{ row.brand ? brandMap.get(row.brand) : '-' }}
-      </template>
-      
-      <!-- 操作列 -->
-      <template #action="{ row }">
-        <Dropdown :trigger="['click']">
-          <Button type="link" size="small">
-            <MoreHorizontal class="size-4" />
-          </Button>
-          <template #overlay>
-            <Menu>
-              <Menu.Item @click="onViewDetail(row)">
-                <span class="flex items-center gap-1">
-                  <Eye class="size-3.5" />
-                  详情
-                </span>
-              </Menu.Item>
-              <Menu.Item @click="onEdit(row)">
-                <span class="flex items-center gap-1">
-                  <Pencil class="size-3.5" />
-                  编辑
-                </span>
-              </Menu.Item>
-              <Menu.Item danger @click="handleDeleteClick(row)">
-                <span class="flex items-center gap-1">
-                  <Trash2 class="size-3.5" />
-                  删除
-                </span>
-              </Menu.Item>
-            </Menu>
-          </template>
-        </Dropdown>
-          </template>
-        </Grid>
-        </div>
+          <Grid table-title="客户列表" :loading="loading" class="h-full">
+            <template #toolbar-tools>
+              <Button type="primary" @click="onCreate">
+                <Plus class="size-5" />
+                新增客户
+              </Button>
+              <Input
+                v-model:value="searchKeyword"
+                allow-clear
+                class="ml-4"
+                placeholder="输入编号或姓名地址搜索"
+                style="width: 240px"
+              >
+                <template #prefix>
+                  <Search class="size-4 text-gray-400" />
+                </template>
+              </Input>
+            </template>
 
-        <!-- 右侧图表区：饼图 + 柱形图 -->
-        <div class="w-[300px] shrink-0 flex flex-col gap-4">
-          <!-- 品牌饼图 -->
-          <div class="rounded-lg bg-white p-3 dark:bg-gray-900 flex flex-col flex-1 min-h-0">
-            <div class="text-sm text-gray-500 dark:text-gray-400 mb-1 shrink-0">品牌占比</div>
-            <EchartsUI ref="brandChartRef" height="100%" class="min-h-0 flex-1" />
-          </div>
-          <!-- 品牌销量 -->
-          <div class="rounded-lg bg-white p-3 dark:bg-gray-900 flex flex-col flex-1 min-h-0">
-            <div class="text-sm text-gray-500 dark:text-gray-400 mb-1 shrink-0">品牌销量</div>
-            <EchartsUI ref="salesChartRef" height="100%" class="min-h-0 flex-1" />
-          </div>
+            <!-- 自定义品牌列的渲染 -->
+            <template #brand="{ row }">
+              {{ row.brand ? brandMap.get(row.brand) : '-' }}
+            </template>
+
+            <!-- 操作列 -->
+            <template #action="{ row }">
+              <Dropdown :trigger="['click']">
+                <Button type="link" size="small">
+                  <MoreHorizontal class="size-4" />
+                </Button>
+                <template #overlay>
+                  <Menu>
+                    <Menu.Item @click="onViewDetail(row)">
+                      <span class="flex items-center gap-1">
+                        <Eye class="size-3.5" />
+                        详情
+                      </span>
+                    </Menu.Item>
+                    <Menu.Item @click="onEdit(row)">
+                      <span class="flex items-center gap-1">
+                        <Pencil class="size-3.5" />
+                        编辑
+                      </span>
+                    </Menu.Item>
+                    <Menu.Item danger @click="handleDeleteClick(row)">
+                      <span class="flex items-center gap-1">
+                        <Trash2 class="size-3.5" />
+                        删除
+                      </span>
+                    </Menu.Item>
+                  </Menu>
+                </template>
+              </Dropdown>
+            </template>
+          </Grid>
+        </div>
+      </div>
+
+      <!-- 右侧：品牌图表单独展示 -->
+      <div class="w-[300px] shrink-0 flex flex-col gap-4">
+        <!-- 品牌占比 -->
+        <div class="rounded-lg bg-white p-3 dark:bg-gray-900 flex flex-col flex-1 min-h-0">
+          <div class="text-sm text-gray-500 dark:text-gray-400 mb-1 shrink-0">品牌占比</div>
+          <EchartsUI ref="brandChartRef" height="100%" class="min-h-0 flex-1" />
+        </div>
+        <!-- 品牌销量 -->
+        <div class="rounded-lg bg-white p-3 dark:bg-gray-900 flex flex-col flex-1 min-h-0">
+          <div class="text-sm text-gray-500 dark:text-gray-400 mb-1 shrink-0">品牌销量</div>
+          <EchartsUI ref="salesChartRef" height="100%" class="min-h-0 flex-1" />
         </div>
       </div>
     </div>
