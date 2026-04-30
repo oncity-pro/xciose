@@ -119,6 +119,20 @@ class Customer(models.Model):
     owed_empty_bucket = models.IntegerField(default=0, verbose_name='欠空桶')  # 设置默认值为0
     # 新增字段：总用水量
     total_water_usage = models.IntegerField(default=0, verbose_name='总用水量')  # 设置默认值为0
+    # 新增字段：VIP优惠方案
+    VIP_SCHEME_CHOICES = [
+        ('10_1', '10送1'),
+        ('20_3', '20送3'),
+        ('30_5', '30送5'),
+        ('50_10', '50送10'),
+    ]
+    vip_scheme = models.CharField(
+        max_length=10,
+        choices=VIP_SCHEME_CHOICES,
+        blank=True,
+        null=True,
+        verbose_name='VIP优惠方案'
+    )
 
     class Meta:
         db_table = 'api_customer'  # 确保使用正确的表名

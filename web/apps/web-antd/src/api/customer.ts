@@ -53,6 +53,8 @@ export interface Customer {
   // 新增字段：总用水量
   total_water_usage?: number;
   totalWaterUsage?: number; // 驼峰命名（供前端使用）
+  // 新增字段：VIP优惠方案
+  vip_scheme?: '10_1' | '20_3' | '30_5' | '50_10' | null;
 }
 
 export interface CustomerListParams {
@@ -81,6 +83,8 @@ export interface CustomerCreateData {
   storage_amount: number;  // 改为必填
   // 新增字段：欠空桶
   owed_empty_bucket: number;  // 改为必填
+  // 新增字段：VIP优惠方案
+  vip_scheme?: '10_1' | '20_3' | '30_5' | '50_10' | null;
 }
 
 export interface CustomerUpdateData {
@@ -101,7 +105,9 @@ export interface CustomerUpdateData {
   // 新增字段：存水量
   storage_amount?: number;
   // 新增字段：欠空桶
-  owed_empty_bucket?: number;
+  owed_empty_bucket: number;
+  // 新增字段：VIP优惠方案
+  vip_scheme?: '10_1' | '20_3' | '30_5' | '50_10' | null;
 }
 
 // ==================== API 函数 ====================

@@ -86,6 +86,34 @@ const [Form, formApi] = useVbenForm({
       defaultValue: 'normal',
     },
     {
+      component: 'RadioGroup',
+      componentProps: {
+        options: [
+          { label: '10送1', value: '10_1' },
+          { label: '20送3', value: '20_3' },
+          { label: '30送5', value: '30_5' },
+          { label: '50送10', value: '50_10' },
+        ],
+        onChange: (e: any) => {
+          const value = e?.target?.value ?? e;
+          if (value && typeof value === 'string') {
+            const parts = value.split('_');
+            const buy = Number(parts[0] || 0);
+            const gift = Number(parts[1] || 0);
+            formApi.setValues({ storage_amount: buy + gift });
+          }
+        },
+      },
+      dependencies: {
+        show(values) {
+          return values.customer_type === 'vip';
+        },
+        triggerFields: ['customer_type'],
+      },
+      fieldName: 'vip_scheme',
+      label: 'VIP优惠方案',
+    },
+    {
       component: 'InputNumber',
       componentProps: {
         placeholder: '请输入存水量',
@@ -193,6 +221,11 @@ const [Modal, modalApi] = useVbenModal({
     modalApi.setState({ confirmLoading: true });
 
     const values = await formApi.getValues();
+    
+    // 如果客户类型不是VIP，清空VIP优惠方案
+    if (values.customer_type !== 'vip') {
+      values.vip_scheme = undefined;
+    }
     
     // 只使用 props 传递的数据
     const customerData = props.customerData;
