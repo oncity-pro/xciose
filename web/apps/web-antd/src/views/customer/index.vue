@@ -542,7 +542,7 @@ onMounted(() => {
             {{ stats.totalChange >= 0 ? '↑' : '↓' }} 较上月 {{ Math.abs(stats.totalChange) }}
           </div>
         </div>
-        <Users class="size-10 text-blue-400/30 dark:text-blue-400/20" />
+        <Users class="size-10 text-blue-500 dark:text-blue-400" />
       </div>
       <div class="flex-1 rounded-lg bg-yellow-50 p-4 dark:bg-yellow-950/30 flex items-center justify-between">
         <div>
@@ -552,7 +552,7 @@ onMounted(() => {
             {{ stats.vipChange >= 0 ? '↑' : '↓' }} 较上月 {{ Math.abs(stats.vipChange) }}
           </div>
         </div>
-        <Award class="size-10 text-yellow-400/30 dark:text-yellow-400/20" />
+        <Award class="size-10 text-yellow-500 dark:text-yellow-400" />
       </div>
       <div class="flex-1 rounded-lg bg-green-50 p-4 dark:bg-green-950/30 flex items-center justify-between">
         <div>
@@ -562,7 +562,7 @@ onMounted(() => {
             {{ stats.normalChange >= 0 ? '↑' : '↓' }} 较上月 {{ Math.abs(stats.normalChange) }}
           </div>
         </div>
-        <User class="size-10 text-green-400/30 dark:text-green-400/20" />
+        <User class="size-10 text-green-500 dark:text-green-400" />
       </div>
       <div class="flex-1 rounded-lg bg-cyan-50 p-4 dark:bg-cyan-950/30 flex items-center justify-between">
         <div>
@@ -572,7 +572,7 @@ onMounted(() => {
             {{ stats.pickupChange >= 0 ? '↑' : '↓' }} 较上月 {{ Math.abs(stats.pickupChange) }}
           </div>
         </div>
-        <Package class="size-10 text-cyan-400/30 dark:text-cyan-400/20" />
+        <Package class="size-10 text-cyan-500 dark:text-cyan-400" />
       </div>
       <div class="flex-1 rounded-lg bg-emerald-50 p-4 dark:bg-emerald-950/30 flex items-center justify-between">
         <div>
@@ -582,7 +582,7 @@ onMounted(() => {
             {{ stats.newChange >= 0 ? '↑' : '↓' }} 较上月 {{ Math.abs(stats.newChange) }}
           </div>
         </div>
-        <UserPlus class="size-10 text-emerald-400/30 dark:text-emerald-400/20" />
+        <UserPlus class="size-10 text-emerald-500 dark:text-emerald-400" />
       </div>
       <div class="flex-1 rounded-lg bg-red-50 p-4 dark:bg-red-950/30 flex items-center justify-between">
         <div>
@@ -592,7 +592,7 @@ onMounted(() => {
             {{ stats.closedChange >= 0 ? '↑' : '↓' }} 较上月 {{ Math.abs(stats.closedChange) }}
           </div>
         </div>
-        <UserX class="size-10 text-red-400/30 dark:text-red-400/20" />
+        <UserX class="size-10 text-red-500 dark:text-red-400" />
       </div>
       </div>
 
