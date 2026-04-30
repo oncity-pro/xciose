@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Sample, WaterBrand, Customer, BucketDepositConfig
+from .models import Sample, WaterBrand, Customer, BucketDepositConfig, DeliveryRecord
 
 
 class SampleSerializer(serializers.ModelSerializer):
@@ -108,3 +108,14 @@ class BucketDepositConfigSerializer(serializers.ModelSerializer):
         model = BucketDepositConfig
         fields = ['id', 'amount_per_bucket', 'updated_at']
         read_only_fields = ['id', 'updated_at']
+
+
+class DeliveryRecordSerializer(serializers.ModelSerializer):
+    """
+    送水记录序列化器
+    """
+    class Meta:
+        model = DeliveryRecord
+        fields = ['id', 'customer', 'date', 'water_delivered', 'buckets_returned',
+                  'owed_empty_buckets', 'storage_amount', 'remark', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']

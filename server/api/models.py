@@ -171,3 +171,31 @@ class BucketDepositConfig(models.Model):
 
     def __str__(self):
         return f'每桶押金: {self.amount_per_bucket}元'
+
+
+class DeliveryRecord(models.Model):
+    """
+    送水记录模型
+    """
+    customer = models.ForeignKey(
+        Customer,
+        on_delete=models.CASCADE,
+        related_name='delivery_records',
+        verbose_name='客户'
+    )
+    date = models.DateField(verbose_name='日期')
+    water_delivered = models.IntegerField(default=0, verbose_name='送水量')
+    buckets_returned = models.IntegerField(default=0, verbose_name='回桶数')
+    owed_empty_buckets = models.IntegerField(default=0, verbose_name='欠空桶')
+    storage_amount = models.IntegerField(default=0, verbose_name='存水量')
+    remark = models.TextField(blank=True, verbose_name='备注')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
+
+    class Meta:
+        ordering = ['-date', '-created_at']
+        verbose_name = '送水记录'
+        verbose_name_plural = '送水记录列表'
+
+    def __str__(self):
+        return f'{self.customer.name} - {self.date}'

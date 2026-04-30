@@ -5,9 +5,11 @@ import { computed, ref } from 'vue';
 
 import { useVbenModal } from '@vben/common-ui';
 
-import { Descriptions, DescriptionsItem, Tag } from 'ant-design-vue';
+import { Card, Descriptions, DescriptionsItem, Table, Tag } from 'ant-design-vue';
 
 import { getBucketDepositConfigApi } from '#/api/settings';
+import { getDeliveryRecordListApi } from '#/api/delivery-record';
+import type { DeliveryRecord } from '#/api/delivery-record';
 
 const props = defineProps<{
   customerData?: Customer | null;
@@ -17,10 +19,36 @@ const props = defineProps<{
 const customer = computed(() => props.customerData);
 const depositPerBucket = ref<number>(30);
 
+// 送水记录
+const deliveryRecords = ref<DeliveryRecord[]>([]);
+const deliveryLoading = ref(false);
+
+const deliveryColumns = [
+  { title: '日期', dataIndex: 'date', key: 'date', width: 120 },
+  { title: '送水量', dataIndex: 'water_delivered', key: 'water_delivered', width: 100, align: 'center' as const },
+  { title: '回桶数', dataIndex: 'buckets_returned', key: 'buckets_returned', width: 100, align: 'center' as const },
+  { title: '欠空桶', dataIndex: 'owed_empty_buckets', key: 'owed_empty_buckets', width: 100, align: 'center' as const },
+  { title: '存水量', dataIndex: 'storage_amount', key: 'storage_amount', width: 100, align: 'center' as const },
+  { title: '备注', dataIndex: 'remark', key: 'remark', ellipsis: true },
+];
+
 const emptyBucketDeposit = computed(() => {
   const owed = customer.value?.owed_empty_bucket ?? 0;
   return Number((owed * depositPerBucket.value).toFixed(2));
 });
+
+async function loadDeliveryRecords() {
+  if (!customer.value?.id) return;
+  deliveryLoading.value = true;
+  try {
+    const data = await getDeliveryRecordListApi(customer.value.id);
+    deliveryRecords.value = data;
+  } catch (error) {
+    console.error('加载送水记录失败:', error);
+  } finally {
+    deliveryLoading.value = false;
+  }
+}
 
 const [Modal, modalApi] = useVbenModal({
   async onOpenChange(isOpen: boolean) {
@@ -32,6 +60,7 @@ const [Modal, modalApi] = useVbenModal({
       } catch (error) {
         console.error('加载空桶押金配置失败:', error);
       }
+      await loadDeliveryRecords();
     }
   },
 });
@@ -126,5 +155,22 @@ function getCustomerTypeLabel(type?: string) {
         {{ customer.remark || '-' }}
       </DescriptionsItem>
     </Descriptions>
+
+    <!-- 送水记录 -->
+    <Card
+      v-if="customer"
+      title="送水记录"
+      :loading="deliveryLoading"
+      class="mt-6"
+      :body-style="{ padding: '12px' }"
+    >
+      <Table
+        :columns="deliveryColumns"
+        :data-source="deliveryRecords"
+        :pagination="false"
+        size="small"
+        :locale="{ emptyText: '暂无送水记录' }"
+      />
+    </Card>
   </Modal>
 </template>

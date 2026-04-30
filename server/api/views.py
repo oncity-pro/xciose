@@ -5,8 +5,8 @@ from rest_framework.views import APIView
 from rest_framework.authtoken.models import Token
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
-from .models import Sample, WaterBrand, Customer, BucketDepositConfig
-from .serializers import SampleSerializer, WaterBrandSerializer, CustomerSerializer, BucketDepositConfigSerializer
+from .models import Sample, WaterBrand, Customer, BucketDepositConfig, DeliveryRecord
+from .serializers import SampleSerializer, WaterBrandSerializer, CustomerSerializer, BucketDepositConfigSerializer, DeliveryRecordSerializer
 from .authentication import BearerTokenAuthentication
 
 
@@ -466,6 +466,30 @@ class MenuView(APIView):
             'code': 0,
             'data': menus
         }, status=status.HTTP_200_OK)
+
+
+# ==================== Delivery Record Views ====================
+
+class DeliveryRecordListView(generics.ListAPIView):
+    """
+    送水记录列表视图
+    GET /api/v1/customers/<customer_id>/delivery-records/
+    """
+    serializer_class = DeliveryRecordSerializer
+    pagination_class = None
+
+    def get_queryset(self):
+        customer_id = self.kwargs.get('customer_id')
+        return DeliveryRecord.objects.filter(customer_id=customer_id)
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        serializer = self.get_serializer(queryset, many=True)
+        return Response({
+            'code': 0,
+            'message': 'success',
+            'data': serializer.data
+        })
 
 
 # ==================== Bucket Deposit Config Views ====================
