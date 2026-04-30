@@ -661,12 +661,12 @@ onMounted(() => {
       <!-- 右侧：品牌图表单独展示 -->
       <div class="w-[300px] shrink-0 flex flex-col gap-4">
         <!-- 品牌占比 -->
-        <div class="rounded-lg bg-white p-3 dark:bg-gray-900 flex flex-col flex-1 min-h-0">
+        <div class="rounded-lg p-3 flex flex-col flex-1 min-h-0">
           <div class="text-sm text-gray-500 dark:text-gray-400 mb-1 shrink-0">品牌占比</div>
           <EchartsUI ref="brandChartRef" height="100%" class="min-h-0 flex-1" />
         </div>
         <!-- 品牌销量 -->
-        <div class="rounded-lg bg-white p-3 dark:bg-gray-900 flex flex-col flex-1 min-h-0">
+        <div class="rounded-lg p-3 flex flex-col flex-1 min-h-0">
           <div class="text-sm text-gray-500 dark:text-gray-400 mb-1 shrink-0">品牌销量</div>
           <EchartsUI ref="salesChartRef" height="100%" class="min-h-0 flex-1" />
         </div>
