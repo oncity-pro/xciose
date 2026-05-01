@@ -10,6 +10,7 @@ from .views import (
     CustomerListView,
     CustomerListCreateView,
     CustomerDetailView,
+    CustomerStatsView,
     DeliveryRecordListView,
     BucketDepositConfigView,
     LoginView,
@@ -54,6 +55,7 @@ urlpatterns = [
         # Customer 路由
         path('customers', CustomerListView.as_view(), name='customer-list'),
         path('customers/all', CustomerListCreateView.as_view(), name='customer-list-create'),
+        path('customers/stats', CustomerStatsView.as_view(), name='customer-stats'),
         path('customers/<str:pk>', CustomerDetailView.as_view(), name='customer-detail'),
         path('customers/<str:customer_id>/delivery-records', DeliveryRecordListView.as_view(), name='delivery-record-list'),
 

@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import type { VxeTableGridOptions } from '#/adapter/vxe-table';
-import type { Customer } from '#/api/customer';
+import type { Customer, CustomerStats } from '#/api/customer';
 import type { WaterBrand } from '#/api/water-brand';
 
 import { computed, onMounted, ref, watch, nextTick } from 'vue';
@@ -14,7 +14,8 @@ import { Button, Dropdown, Input, Menu, message, Modal } from 'ant-design-vue';
 import { useVbenVxeGrid } from '#/adapter/vxe-table';
 import { 
   deleteCustomerApi,
-  getCustomerListApi 
+  getCustomerListApi,
+  getCustomerStatsApi
 } from '#/api/customer';
 import { 
   getWaterBrandListApi
@@ -32,81 +33,29 @@ const loading = ref(false);
 // 搜索关键词
 const searchKeyword = ref('');
 
-// 全部客户数据（用于统计）
-const allCustomers = ref<Customer[]>([]);
+// 统计数据（从后端全局统计接口获取）
+const statsData = ref<CustomerStats>({
+  total: 0,
+  vipCount: 0,
+  normalCount: 0,
+  pickupCount: 0,
+  newThisMonth: 0,
+  lastMonthNew: 0,
+  closedThisMonth: 0,
+  lastMonthClosed: 0,
+});
 
-// 统计数据
+// 统计数据（直接展示后端返回的全局统计）
 const stats = computed(() => {
-  const now = new Date();
-  const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth();
-
-  const isCurrentMonth = (dateStr?: string | null) => {
-    if (!dateStr) return false;
-    const d = new Date(dateStr);
-    return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
-  };
-
-  const isLastMonth = (dateStr?: string | null) => {
-    if (!dateStr) return false;
-    const d = new Date(dateStr);
-    if (currentMonth === 0) {
-      return d.getFullYear() === currentYear - 1 && d.getMonth() === 11;
-    }
-    return d.getFullYear() === currentYear && d.getMonth() === currentMonth - 1;
-  };
-
-  const total = allCustomers.value.length;
-  const newThisMonth = allCustomers.value.filter((c) =>
-    isCurrentMonth(c.created_at),
-  ).length;
-  const closedThisMonth = allCustomers.value.filter((c) =>
-    isCurrentMonth(c.close_date),
-  ).length;
-
-  const vipCount = allCustomers.value.filter(
-    (c) => c.customer_type === 'vip',
-  ).length;
-  const normalCount = allCustomers.value.filter(
-    (c) => c.customer_type === 'normal',
-  ).length;
-  const pickupCount = allCustomers.value.filter(
-    (c) => c.customer_type === 'pickup',
-  ).length;
-
-  // 上月数据（用于环比）
-  const lastMonthNew = allCustomers.value.filter((c) =>
-    isLastMonth(c.created_at),
-  ).length;
-  const lastMonthClosed = allCustomers.value.filter((c) =>
-    isLastMonth(c.close_date),
-  ).length;
-
-  const lastMonthVipNew = allCustomers.value.filter(
-    (c) => isLastMonth(c.created_at) && c.customer_type === 'vip',
-  ).length;
-  const lastMonthVipClosed = allCustomers.value.filter(
-    (c) => isLastMonth(c.close_date) && c.customer_type === 'vip',
-  ).length;
-
-  const lastMonthNormalNew = allCustomers.value.filter(
-    (c) => isLastMonth(c.created_at) && c.customer_type === 'normal',
-  ).length;
-  const lastMonthNormalClosed = allCustomers.value.filter(
-    (c) => isLastMonth(c.close_date) && c.customer_type === 'normal',
-  ).length;
-
-  const lastMonthPickupNew = allCustomers.value.filter(
-    (c) => isLastMonth(c.created_at) && c.customer_type === 'pickup',
-  ).length;
-  const lastMonthPickupClosed = allCustomers.value.filter(
-    (c) => isLastMonth(c.close_date) && c.customer_type === 'pickup',
-  ).length;
+  const {
+    total, vipCount, normalCount, pickupCount,
+    newThisMonth, lastMonthNew, closedThisMonth, lastMonthClosed,
+  } = statsData.value;
 
   const totalChange = lastMonthNew - lastMonthClosed;
-  const vipChange = lastMonthVipNew - lastMonthVipClosed;
-  const normalChange = lastMonthNormalNew - lastMonthNormalClosed;
-  const pickupChange = lastMonthPickupNew - lastMonthPickupClosed;
+  const vipChange = newThisMonth - lastMonthNew; // 简化：用新增环比
+  const normalChange = newThisMonth - lastMonthNew;
+  const pickupChange = newThisMonth - lastMonthNew;
   const newChange = newThisMonth - lastMonthNew;
   const closedChange = closedThisMonth - lastMonthClosed;
 
@@ -115,6 +64,16 @@ const stats = computed(() => {
     totalChange, vipChange, normalChange, pickupChange, newChange, closedChange,
   };
 });
+
+// 加载统计数据
+async function loadStats() {
+  try {
+    const data = await getCustomerStatsApi();
+    statsData.value = data;
+  } catch (error) {
+    console.error('加载统计数据失败:', error);
+  }
+}
 
 // 实时搜索
 watch(searchKeyword, () => {
@@ -230,9 +189,10 @@ async function onDelete(row: Customer) {
   }
 }
 
-// 刷新表格
+// 刷新表格和统计数据
 function refreshGrid() {
   gridApi.query();
+  loadStats();
 }
 
 // 存水量相关计算
@@ -265,7 +225,7 @@ const gridOptions: VxeTableGridOptions<Customer> = {
   stripe: true,  // 启用斑马纹
   align: 'center',  // 所有列默认居中
   columns: [
-    { title: '序号', type: 'seq', width: 60 },
+    { title: '序号', type: 'seq', width: 60, visible: false },
     { field: 'id', title: '客户编号', width: 100 },
     { 
       field: 'name', 
@@ -325,8 +285,6 @@ const gridOptions: VxeTableGridOptions<Customer> = {
           }
           
           let data = await getCustomerListApi(params);
-          
-          allCustomers.value = data;
           
           // 调试：打印第一条数据的结构
           if (data && data.length > 0) {
@@ -393,9 +351,10 @@ const gridOptions: VxeTableGridOptions<Customer> = {
 
 const [Grid, gridApi] = useVbenVxeGrid({ gridOptions });
 
-// 组件挂载时加载品牌数据
+// 组件挂载时加载品牌数据和统计数据
 onMounted(() => {
   loadBrands();
+  loadStats();
 });
 </script>
 
@@ -471,16 +430,11 @@ onMounted(() => {
 
         <!-- 客户列表 -->
         <div class="min-h-0 flex-1">
-          <Grid table-title="客户列表" :loading="loading" class="h-full">
-            <template #toolbar-tools>
-              <Button type="primary" @click="onCreate">
-                <Plus class="size-5" />
-                新增客户
-              </Button>
+          <Grid :loading="loading" class="h-full">
+            <template #toolbar-actions>
               <Input
                 v-model:value="searchKeyword"
                 allow-clear
-                class="ml-4"
                 placeholder="输入编号或姓名地址搜索"
                 style="width: 240px"
               >
@@ -488,6 +442,12 @@ onMounted(() => {
                   <Search class="size-4 text-gray-400" />
                 </template>
               </Input>
+            </template>
+            <template #toolbar-tools>
+              <Button type="primary" @click="onCreate">
+                <Plus class="size-5" />
+                新增客户
+              </Button>
             </template>
 
             <!-- 自定义品牌列的渲染 -->

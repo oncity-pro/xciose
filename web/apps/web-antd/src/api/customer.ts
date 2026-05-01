@@ -122,7 +122,27 @@ export interface CustomerUpdateData {
   vip_scheme?: '10_1' | '20_3' | '30_5' | '50_10' | null;
 }
 
+// ==================== 统计数据类型 ====================
+
+export interface CustomerStats {
+  total: number;
+  vipCount: number;
+  normalCount: number;
+  pickupCount: number;
+  newThisMonth: number;
+  lastMonthNew: number;
+  closedThisMonth: number;
+  lastMonthClosed: number;
+}
+
 // ==================== API 函数 ====================
+
+/**
+ * 获取客户统计（全局统计，不受搜索影响）
+ */
+export async function getCustomerStatsApi(): Promise<CustomerStats> {
+  return requestClient.get<CustomerStats>('/v1/customers/stats');
+}
 
 /**
  * 获取客户列表

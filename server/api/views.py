@@ -344,6 +344,76 @@ class CustomerListCreateView(generics.ListCreateAPIView):
         }, status=status.HTTP_201_CREATED)
 
 
+class CustomerStatsView(APIView):
+    """
+    客户统计视图（全局统计，不受搜索参数影响）
+    GET /api/v1/customers/stats
+    """
+    
+    def get(self, request):
+        from django.db.models import Q
+        from django.utils import timezone
+        
+        now = timezone.now()
+        current_year = now.year
+        current_month = now.month
+        
+        # 计算上月
+        if current_month == 1:
+            last_month = 12
+            last_month_year = current_year - 1
+        else:
+            last_month = current_month - 1
+            last_month_year = current_year
+        
+        # 客户总数
+        total = Customer.objects.count()
+        
+        # 各类型客户数
+        vip_count = Customer.objects.filter(customer_type='vip').count()
+        normal_count = Customer.objects.filter(customer_type='normal').count()
+        pickup_count = Customer.objects.filter(customer_type='pickup').count()
+        
+        # 本月新增（按开户日期）
+        new_this_month = Customer.objects.filter(
+            open_date__year=current_year,
+            open_date__month=current_month
+        ).count()
+        
+        # 上月新增
+        last_month_new = Customer.objects.filter(
+            open_date__year=last_month_year,
+            open_date__month=last_month
+        ).count()
+        
+        # 本月注销
+        closed_this_month = Customer.objects.filter(
+            close_date__year=current_year,
+            close_date__month=current_month
+        ).count()
+        
+        # 上月注销
+        last_month_closed = Customer.objects.filter(
+            close_date__year=last_month_year,
+            close_date__month=last_month
+        ).count()
+        
+        return Response({
+            'code': 0,
+            'message': 'success',
+            'data': {
+                'total': total,
+                'vipCount': vip_count,
+                'normalCount': normal_count,
+                'pickupCount': pickup_count,
+                'newThisMonth': new_this_month,
+                'lastMonthNew': last_month_new,
+                'closedThisMonth': closed_this_month,
+                'lastMonthClosed': last_month_closed,
+            }
+        })
+
+
 class CustomerDetailView(generics.RetrieveUpdateDestroyAPIView):
     """
     客户详情、更新和删除视图
