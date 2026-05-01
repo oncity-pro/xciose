@@ -433,9 +433,9 @@ const gridOptions: VxeTableGridOptions<Customer> = {
     { field: 'openDate', title: '开户日期', width: 120 },
     { field: 'lastDeliveryDate', title: '最后送水日期', width: 130 },
     { field: 'storage_amount', title: '存水量', width: 150, sortable: true, align: 'center', slots: { default: 'storage' } },
-    { field: 'owed_empty_bucket', title: '欠空桶', width: 100, sortable: true, align: 'right' },
+    { field: 'owed_empty_bucket', title: '欠空桶', width: 110, sortable: true, align: 'right' },
     { field: 'bucket_deposit_display', title: '桶押金', width: 150, align: 'center' },
-    { field: 'total_water_usage', title: '总用水量', width: 100, sortable: true, align: 'right' },
+    { field: 'total_water_usage', title: '总用水量', width: 110, sortable: true, align: 'right' },
     {
       title: '操作',
       width: 80,
@@ -713,34 +713,17 @@ onMounted(() => {
 </template>
 
 <style>
-/* Ant Design 风格排序图标：未排序时隐藏，悬停时显示淡色双箭头 */
+/* 隐藏默认排序图标 */
 .vxe-table .vxe-sort--asc-btn,
 .vxe-table .vxe-sort--desc-btn {
-  opacity: 0;
-  transition: opacity 0.2s;
+  display: none !important;
 }
 
-/* 悬停表头时显示淡色双箭头，提示该列可排序 */
-.vxe-header--column:hover .vxe-sort--asc-btn,
-.vxe-header--column:hover .vxe-sort--desc-btn {
-  opacity: 0.3;
-}
-
-/* 升序激活：只显示上箭头（高亮） */
-.vxe-table .vxe-cell--sort .vxe-sort--asc-btn.sort--active {
-  opacity: 1;
-}
-.vxe-table .vxe-sort--asc-btn.sort--active + .vxe-sort--desc-btn {
-  opacity: 0;
-  visibility: hidden;
-}
-
-/* 降序激活：只显示下箭头（高亮） */
-.vxe-cell--sort-vertical-layout:has(.vxe-sort--desc-btn.sort--active) .vxe-sort--asc-btn {
-  opacity: 0;
-  visibility: hidden;
-}
-.vxe-table .vxe-cell--sort .vxe-sort--desc-btn.sort--active {
-  opacity: 1;
+/* 在可排序列的表头标题后添加 ↓↑，字号与表头一致 */
+.vxe-header--column.vxe-sortable .vxe-cell--title::after {
+  content: "↓↑";
+  margin-left: 2px;
+  color: #999;
+  letter-spacing: -1px;
 }
 </style>
