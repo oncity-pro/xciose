@@ -38,6 +38,9 @@ const depositPerBucket = ref<number>(30);
 // 品牌单价映射（用于自动计算桶装水价格）
 const brandPriceMap = ref<Map<number, number>>(new Map());
 
+// 怡宝品牌ID（加载品牌列表后动态获取）
+let defaultBrandId: number | null = null;
+
 // 根据当前品牌和客户类型自动计算桶装水价格
 async function updatePricePerBucket() {
   const values = await formApi.getValues();
@@ -414,6 +417,9 @@ const [Modal, modalApi] = useVbenModal({
         depositPerBucket.value = config.amount_per_bucket;
         brands.forEach((brand: WaterBrand) => {
           brandPriceMap.value.set(brand.id, brand.price_per_bucket || 0);
+          if (brand.name === '怡宝') {
+            defaultBrandId = brand.id;
+          }
         });
       } catch (error) {
         console.error('加载配置失败:', error);
@@ -441,12 +447,11 @@ const [Modal, modalApi] = useVbenModal({
           empty_bucket_deposit: 0,
           
           // 设置怡宝为默认品牌
-          brand: 2  // 假设怡宝的ID是2
+          brand: defaultBrandId,
         });
         
         // 根据默认品牌自动计算桶装水价格
-        const defaultBrandId = 2;
-        if (brandPriceMap.value.has(defaultBrandId)) {
+        if (defaultBrandId && brandPriceMap.value.has(defaultBrandId)) {
           const basePrice = brandPriceMap.value.get(defaultBrandId) || 0;
           await formApi.setValues({ price_per_bucket: basePrice });
         }

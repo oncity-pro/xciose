@@ -263,6 +263,7 @@ const gridOptions: VxeTableGridOptions<Customer> = {
     keyField: 'id',  // 使用正确的属性来指定行的唯一标识
   },
   stripe: true,  // 启用斑马纹
+  align: 'center',  // 所有列默认居中
   columns: [
     { title: '序号', type: 'seq', width: 60 },
     { field: 'id', title: '客户编号', width: 100 },
@@ -281,10 +282,10 @@ const gridOptions: VxeTableGridOptions<Customer> = {
     { field: 'openDate', title: '开户日期', width: 120 },
     { field: 'lastDeliveryDate', title: '最后送水日期', width: 130 },
     { field: 'storage_amount', title: '存水量', width: 150, sortable: true, align: 'center', slots: { default: 'storage', header: 'sortHeader' } },
-    { field: 'owed_empty_bucket', title: '欠空桶', width: 110, sortable: true, align: 'right', slots: { header: 'sortHeader' } },
+    { field: 'owed_empty_bucket', title: '欠空桶', width: 110, sortable: true, align: 'center', slots: { header: 'sortHeader' } },
     { field: 'bucket_deposit_display', title: '桶押金', width: 150, align: 'center' },
-    { field: 'total_water_usage', title: '总用水量', width: 110, sortable: true, align: 'right', slots: { header: 'sortHeader' } },
-    { field: 'total_consumption', title: '消费总额', width: 120, sortable: true, align: 'right', slots: { header: 'sortHeader' }, formatter: ({ cellValue }: { cellValue: number }) => cellValue ? `¥${Number(cellValue).toFixed(2)}` : '¥0.00' },
+    { field: 'total_water_usage', title: '总用水量', width: 110, sortable: true, align: 'center', slots: { header: 'sortHeader' } },
+    { field: 'total_consumption', title: '消费总额', width: 120, sortable: true, align: 'center', slots: { header: 'sortHeader' }, formatter: ({ cellValue }: { cellValue: number }) => cellValue ? `¥${Number(cellValue).toFixed(2)}` : '¥0.00' },
     {
       title: '操作',
       width: 80,
