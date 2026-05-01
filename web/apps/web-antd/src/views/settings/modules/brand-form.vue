@@ -6,7 +6,7 @@ import { useVbenModal } from '@vben/common-ui';
 import { message } from 'ant-design-vue';
 
 import { useVbenForm } from '#/adapter/form';
-import { createWaterBrandApi, type WaterBrand } from '#/api/water-brand';
+import { createWaterBrandApi, updateWaterBrandApi, type WaterBrand } from '#/api/water-brand';
 
 const emit = defineEmits(['success']);
 
@@ -30,6 +30,17 @@ const [Form, formApi] = useVbenForm({
       label: '品牌名称',
       rules: 'required',
     },
+    {
+      component: 'InputNumber',
+      componentProps: {
+        placeholder: '请输入每桶单价',
+        min: 0,
+        precision: 2,
+        style: { width: '100%' },
+      },
+      fieldName: 'price_per_bucket',
+      label: '每桶单价（元）',
+    },
   ],
   showDefaultActions: false,
 });
@@ -43,21 +54,38 @@ const [Modal, modalApi] = useVbenModal({
       const values = await formApi.getValues();
       
       try {
-        // 调用真实的创建API
-        await createWaterBrandApi({ 
+        const payload: Record<string, any> = {
           name: values.name,
-        });
+          // 单价为空时默认传 0，避免后端验证失败
+          price_per_bucket: values.price_per_bucket ?? 0,
+        };
         
-        message.success('新增成功');
+        if (formData.value?.id) {
+          // 编辑模式
+          await updateWaterBrandApi(formData.value.id, payload);
+          message.success('修改成功');
+        } else {
+          // 新增模式
+          await createWaterBrandApi(payload);
+          message.success('新增成功');
+        }
         modalApi.close();
         emit('success');
       } catch (error: any) {
         console.error('操作失败:', error);
         // 显示后端返回的错误信息
-        const errorMsg = error.response?.data?.detail || 
-                        Object.values(error.response?.data || {})[0] || 
-                        '操作失败';
-        message.error(typeof errorMsg === 'string' ? errorMsg : '操作失败');
+        const errorData = error.response?.data;
+        let errorMsg: string;
+        if (errorData?.detail) {
+          errorMsg = errorData.detail;
+        } else if (errorData && typeof errorData === 'object') {
+          // 提取第一个验证错误（可能是数组或字符串）
+          const firstError = Object.values(errorData).flat()[0];
+          errorMsg = typeof firstError === 'string' ? firstError : '操作失败';
+        } else {
+          errorMsg = '操作失败';
+        }
+        message.error(errorMsg);
       } finally {
         modalApi.lock(false);
       }

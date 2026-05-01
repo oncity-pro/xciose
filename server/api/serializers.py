@@ -18,7 +18,7 @@ class WaterBrandSerializer(serializers.ModelSerializer):
     """
     class Meta:
         model = WaterBrand
-        fields = ['id', 'name', 'description', 'is_active', 'created_at', 'updated_at']
+        fields = ['id', 'name', 'description', 'price_per_bucket', 'is_active', 'created_at', 'updated_at']
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
@@ -32,7 +32,7 @@ class CustomerSerializer(serializers.ModelSerializer):
         model = Customer
         fields = ['id', 'name', 'customer_type', 'customer_type_display', 'brand', 'brand_name',
                   'open_date', 'last_delivery_date', 'close_date',
-                  'phone', 'remark', 'is_active', 'created_at', 'updated_at', 'storage_amount', 'owed_empty_bucket', 'total_water_usage', 'vip_scheme',
+                  'phone', 'remark', 'is_active', 'created_at', 'updated_at', 'storage_amount', 'owed_empty_bucket', 'total_water_usage', 'total_consumption', 'price_per_bucket', 'vip_scheme',
                   'bucket_deposit_display']
         read_only_fields = ['created_at', 'updated_at']
 
@@ -82,6 +82,13 @@ class CustomerSerializer(serializers.ModelSerializer):
         data['owedEmptyBucket'] = instance.owed_empty_bucket
         # 添加驼峰命名的total_water_usage字段
         data['totalWaterUsage'] = instance.total_water_usage
+        # 消费总额：优先取手动维护值，若为0且品牌有单价则自动计算
+        total_consumption = float(instance.total_consumption or 0)
+        if total_consumption == 0 and instance.brand and instance.brand.price_per_bucket:
+            total_consumption = float(instance.total_water_usage or 0) * float(instance.brand.price_per_bucket)
+        data['totalConsumption'] = round(total_consumption, 2)
+        # 添加驼峰命名的桶装水价格字段
+        data['pricePerBucket'] = float(instance.price_per_bucket or 0)
         return data
 
     def update(self, instance, validated_data):

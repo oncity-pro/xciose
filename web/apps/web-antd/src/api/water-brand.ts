@@ -11,6 +11,7 @@ export interface WaterBrand {
   id: number;
   name: string;
   description?: string;
+  price_per_bucket?: number;
   is_active?: boolean;
   created_at?: string;
   updated_at?: string;

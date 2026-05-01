@@ -230,6 +230,21 @@ class WaterBrandDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = WaterBrand.objects.all()
     serializer_class = WaterBrandSerializer
     
+    def update(self, request, *args, **kwargs):
+        """
+        重写 update 方法，返回 Vben Admin 期望的格式
+        """
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return Response({
+            'code': 0,
+            'message': '更新成功',
+            'data': serializer.data
+        })
+    
     def destroy(self, request, *args, **kwargs):
         """
         重写 destroy 方法，返回 Vben Admin 期望的格式

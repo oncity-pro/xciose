@@ -53,6 +53,12 @@ export interface Customer {
   // 新增字段：总用水量
   total_water_usage?: number;
   totalWaterUsage?: number; // 驼峰命名（供前端使用）
+  // 新增字段：消费总额
+  total_consumption?: number;
+  totalConsumption?: number; // 驼峰命名（供前端使用）
+  // 新增字段：桶装水价格（自提客户自动减2元）
+  price_per_bucket?: number;
+  pricePerBucket?: number; // 驼峰命名（供前端使用）
   // 新增字段：VIP优惠方案
   vip_scheme?: '10_1' | '20_3' | '30_5' | '50_10' | null;
   // 桶押金显示
@@ -85,6 +91,8 @@ export interface CustomerCreateData {
   storage_amount: number;  // 改为必填
   // 新增字段：欠空桶
   owed_empty_bucket: number;  // 改为必填
+  // 新增字段：桶装水价格
+  price_per_bucket?: number;
   // 新增字段：VIP优惠方案
   vip_scheme?: '10_1' | '20_3' | '30_5' | '50_10' | null;
 }
@@ -108,6 +116,8 @@ export interface CustomerUpdateData {
   storage_amount?: number;
   // 新增字段：欠空桶
   owed_empty_bucket: number;
+  // 新增字段：桶装水价格
+  price_per_bucket?: number;
   // 新增字段：VIP优惠方案
   vip_scheme?: '10_1' | '20_3' | '30_5' | '50_10' | null;
 }

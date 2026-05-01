@@ -35,6 +35,20 @@ const emit = defineEmits<{ success: [] }>();
 // 每桶押金金额（从全局配置获取）
 const depositPerBucket = ref<number>(30);
 
+// 品牌单价映射（用于自动计算桶装水价格）
+const brandPriceMap = ref<Map<number, number>>(new Map());
+
+// 根据当前品牌和客户类型自动计算桶装水价格
+async function updatePricePerBucket() {
+  const values = await formApi.getValues();
+  const brandId = values?.brand;
+  const customerType = values?.customer_type;
+  if (!brandId || !brandPriceMap.value.has(brandId)) return;
+  const basePrice = brandPriceMap.value.get(brandId) || 0;
+  const finalPrice = customerType === 'pickup' ? Math.max(0, basePrice - 2) : basePrice;
+  formApi.setValues({ price_per_bucket: finalPrice });
+}
+
 // 是否为编辑模式
 const isEdit = computed(() => {
   return props.customerData && Object.keys(props.customerData).length > 0;
@@ -103,6 +117,7 @@ const [Form, formApi] = useVbenForm({
       componentProps: {
         placeholder: '请选择客户类型',
         options: CUSTOMER_TYPE_OPTIONS,
+        onChange: () => updatePricePerBucket(),
       },
       fieldName: 'customer_type',
       label: '客户类型',
@@ -120,7 +135,19 @@ const [Form, formApi] = useVbenForm({
         allowClear: true,
         popupMatchSelectWidth: false, // 下拉框不与选择框宽度匹配
         dropdownStyle: { minWidth: '200px' }, // 设置下拉框最小宽度
+        onChange: () => updatePricePerBucket(),
       },
+    },
+    {
+      component: 'InputNumber',
+      componentProps: {
+        placeholder: '自动计算或手动输入',
+        min: 0,
+        precision: 2,
+        addonAfter: '元',
+      },
+      fieldName: 'price_per_bucket',
+      label: '桶装水价格',
     },
     {
       component: 'RadioGroup',
@@ -378,12 +405,18 @@ const [Modal, modalApi] = useVbenModal({
       console.warn('onOpenChange - data 所有键名:', data ? Object.keys(data) : []);
       console.warn('===========================');
 
-      // 加载空桶押金配置
+      // 同时加载空桶押金配置和品牌列表
       try {
-        const config = await getBucketDepositConfigApi();
+        const [config, brands] = await Promise.all([
+          getBucketDepositConfigApi(),
+          getWaterBrandListApi(),
+        ]);
         depositPerBucket.value = config.amount_per_bucket;
+        brands.forEach((brand: WaterBrand) => {
+          brandPriceMap.value.set(brand.id, brand.price_per_bucket || 0);
+        });
       } catch (error) {
-        console.error('加载空桶押金配置失败:', error);
+        console.error('加载配置失败:', error);
       }
       
       if (data && Object.keys(data).length > 0) {
@@ -410,6 +443,13 @@ const [Modal, modalApi] = useVbenModal({
           // 设置怡宝为默认品牌
           brand: 2  // 假设怡宝的ID是2
         });
+        
+        // 根据默认品牌自动计算桶装水价格
+        const defaultBrandId = 2;
+        if (brandPriceMap.value.has(defaultBrandId)) {
+          const basePrice = brandPriceMap.value.get(defaultBrandId) || 0;
+          await formApi.setValues({ price_per_bucket: basePrice });
+        }
         
         // 标题通过插槽设置
       }

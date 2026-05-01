@@ -21,6 +21,7 @@ import {
   updateBucketDepositConfigApi,
 } from '#/api/settings';
 import { deleteWaterBrandApi, getWaterBrandListApi, type WaterBrand } from '#/api/water-brand';
+import { Pencil } from 'lucide-vue-next';
 
 import BrandForm from './modules/brand-form.vue';
 
@@ -55,6 +56,11 @@ async function loadBrands() {
 // 新增品牌
 function onCreate() {
   brandFormModalApi.setData(null).open();
+}
+
+// 编辑品牌
+function onEdit(row: WaterBrand) {
+  brandFormModalApi.setData(row).open();
 }
 
 // 删除品牌
@@ -161,11 +167,19 @@ onMounted(() => {
               <div class="flex items-center justify-between">
                 <div>
                   <div class="text-base font-medium">{{ item.name }}</div>
-                  <div class="mt-1 text-xs text-gray-400">ID: {{ item.id }}</div>
+                  <div class="mt-1 text-xs text-gray-400">
+                    <span>ID: {{ item.id }}</span>
+                    <span class="ml-3">单价: ¥{{ item.price_per_bucket || 0 }}</span>
+                  </div>
                 </div>
-                <Button type="link" danger size="small" @click="onDelete(item)">
-                  删除
-                </Button>
+                <div class="flex items-center gap-1">
+                  <Button type="link" size="small" @click="onEdit(item)">
+                    <Pencil class="size-3.5" />
+                  </Button>
+                  <Button type="link" danger size="small" @click="onDelete(item)">
+                    删除
+                  </Button>
+                </div>
               </div>
             </Card>
           </Col>

@@ -28,6 +28,12 @@ class WaterBrand(models.Model):
     """
     name = models.CharField(max_length=100, verbose_name='品牌名称')
     description = models.TextField(blank=True, verbose_name='品牌描述')
+    price_per_bucket = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0.00,
+        verbose_name='每桶单价'
+    )
     is_active = models.BooleanField(default=True, verbose_name='是否启用')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
@@ -119,6 +125,20 @@ class Customer(models.Model):
     owed_empty_bucket = models.IntegerField(default=0, verbose_name='欠空桶')  # 设置默认值为0
     # 新增字段：总用水量
     total_water_usage = models.IntegerField(default=0, verbose_name='总用水量')  # 设置默认值为0
+    # 新增字段：消费总额（可手动维护，也可按品牌单价自动计算）
+    total_consumption = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=0.00,
+        verbose_name='消费总额'
+    )
+    # 新增字段：桶装水价格（自提客户自动减2元）
+    price_per_bucket = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0.00,
+        verbose_name='桶装水价格'
+    )
     # 新增字段：VIP优惠方案
     VIP_SCHEME_CHOICES = [
         ('10_1', '10送1'),

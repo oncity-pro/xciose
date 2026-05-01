@@ -1,5 +1,4 @@
 <script lang="ts" setup>
-import type { EchartsUIType } from '@vben/plugins/echarts';
 import type { VxeTableGridOptions } from '#/adapter/vxe-table';
 import type { Customer } from '#/api/customer';
 import type { WaterBrand } from '#/api/water-brand';
@@ -7,7 +6,6 @@ import type { WaterBrand } from '#/api/water-brand';
 import { computed, onMounted, ref, watch, nextTick } from 'vue';
 
 import { Page, useVbenModal } from '@vben/common-ui';
-import { EchartsUI, useEcharts } from '@vben/plugins/echarts';
 import { Plus } from '@vben/icons';
 import { Award, Droplets, Eye, MoreHorizontal, Package, Pencil, Search, Trash2, User, UserPlus, Users, UserX } from 'lucide-vue-next';
 
@@ -138,157 +136,7 @@ async function loadBrands() {
   }
 }
 
-// 品牌饼图
-const brandChartRef = ref<EchartsUIType>();
-const { renderEcharts: renderBrandChart } = useEcharts(brandChartRef);
 
-// 品牌销量柱形图
-const salesChartRef = ref<EchartsUIType>();
-const { renderEcharts: renderSalesChart } = useEcharts(salesChartRef);
-
-const brandPieData = computed(() => {
-  const map = new Map<number, number>();
-  allCustomers.value.forEach((c) => {
-    const brandId = c.brand ?? 0;
-    map.set(brandId, (map.get(brandId) ?? 0) + 1);
-  });
-  const result = Array.from(map.entries())
-    .map(([brandId, count]) => ({
-      name: brandId ? (brandMap.value.get(brandId) ?? `品牌${brandId}`) : '未设置品牌',
-      value: count,
-    }))
-    .sort((a, b) => b.value - a.value);
-  return result;
-});
-
-const brandSalesData = computed(() => {
-  const map = new Map<number, number>();
-  allCustomers.value.forEach((c) => {
-    const brandId = c.brand ?? 0;
-    const usage = c.total_water_usage ?? 0;
-    map.set(brandId, (map.get(brandId) ?? 0) + usage);
-  });
-  const result = Array.from(map.entries())
-    .map(([brandId, total]) => ({
-      name: brandId ? (brandMap.value.get(brandId) ?? `品牌${brandId}`) : '未设置品牌',
-      value: total,
-    }))
-    .sort((a, b) => b.value - a.value);
-  return result;
-});
-
-// 渲染/更新品牌饼图
-function updateBrandChart() {
-  const data = brandPieData.value;
-  if (data.length === 0) return;
-
-  renderBrandChart({
-    tooltip: {
-      formatter: '{b}: {c}户 ({d}%)',
-      trigger: 'item',
-    },
-    legend: {
-      bottom: '0%',
-      itemGap: 8,
-      itemWidth: 10,
-      itemHeight: 10,
-      left: 'center',
-      textStyle: {
-        fontSize: 11,
-      },
-    },
-    series: [
-      {
-        animationEasing: 'cubicOut',
-        animationType: 'expansion',
-        avoidLabelOverlap: true,
-        center: ['55%', '42%'],
-        data,
-        emphasis: {
-          itemStyle: {
-            shadowBlur: 10,
-            shadowColor: 'rgba(0, 0, 0, 0.5)',
-            shadowOffsetX: 0,
-          },
-          label: {
-            fontSize: 12,
-            fontWeight: 'bold',
-            show: true,
-          },
-        },
-        itemStyle: {
-          borderColor: '#fff',
-          borderRadius: 6,
-          borderWidth: 2,
-        },
-        label: {
-          show: false,
-        },
-        labelLine: {
-          show: false,
-        },
-        radius: ['28%', '52%'],
-        type: 'pie',
-      },
-    ],
-  });
-}
-
-// 渲染/更新品牌销量柱形图
-function updateSalesChart() {
-  const data = brandSalesData.value;
-  if (data.length === 0) return;
-
-  renderSalesChart({
-    grid: {
-      bottom: '18%',
-      left: '12%',
-      right: '8%',
-      top: '12%',
-    },
-    tooltip: {
-      formatter: '{b}: {c}桶',
-      trigger: 'axis',
-    },
-    xAxis: {
-      axisLabel: {
-        fontSize: 10,
-        interval: 0,
-        rotate: data.length > 4 ? 30 : 0,
-      },
-      axisTick: { show: false },
-      data: data.map((d) => d.name),
-      type: 'category',
-    },
-    yAxis: {
-      axisLabel: { fontSize: 10 },
-      splitLine: {
-        lineStyle: { type: 'dashed' },
-      },
-      type: 'value',
-    },
-    series: [
-      {
-        barWidth: '50%',
-        data: data.map((d) => d.value),
-        itemStyle: { borderRadius: [4, 4, 0, 0] },
-        label: {
-          fontSize: 10,
-          position: 'top',
-          show: true,
-        },
-        type: 'bar',
-      },
-    ],
-  });
-}
-
-watch([allCustomers, brandMap], () => {
-  if (allCustomers.value.length > 0) {
-    updateBrandChart();
-    updateSalesChart();
-  }
-}, { flush: 'post' });
 const [FormModal, formModalApi] = useVbenModal({
   connectedComponent: Form,
   destroyOnClose: true,
@@ -432,10 +280,11 @@ const gridOptions: VxeTableGridOptions<Customer> = {
     },
     { field: 'openDate', title: '开户日期', width: 120 },
     { field: 'lastDeliveryDate', title: '最后送水日期', width: 130 },
-    { field: 'storage_amount', title: '存水量', width: 150, sortable: true, align: 'center', slots: { default: 'storage' } },
-    { field: 'owed_empty_bucket', title: '欠空桶', width: 110, sortable: true, align: 'right' },
+    { field: 'storage_amount', title: '存水量', width: 150, sortable: true, align: 'center', slots: { default: 'storage', header: 'sortHeader' } },
+    { field: 'owed_empty_bucket', title: '欠空桶', width: 110, sortable: true, align: 'right', slots: { header: 'sortHeader' } },
     { field: 'bucket_deposit_display', title: '桶押金', width: 150, align: 'center' },
-    { field: 'total_water_usage', title: '总用水量', width: 110, sortable: true, align: 'right' },
+    { field: 'total_water_usage', title: '总用水量', width: 110, sortable: true, align: 'right', slots: { header: 'sortHeader' } },
+    { field: 'total_consumption', title: '消费总额', width: 120, sortable: true, align: 'right', slots: { header: 'sortHeader' }, formatter: ({ cellValue }: { cellValue: number }) => cellValue ? `¥${Number(cellValue).toFixed(2)}` : '¥0.00' },
     {
       title: '操作',
       width: 80,
@@ -451,8 +300,8 @@ const gridOptions: VxeTableGridOptions<Customer> = {
     pageSizes: [12, 13, 14, 15],  // ✅ 更新分页选项为12/13/14/15
   },
   sortConfig: {
-    // 点击整个表头区域（字段名文字）即可排序，不只是小箭头图标
-    trigger: 'default',
+    // 点击整个表头单元格即可排序（因默认排序图标已被隐藏）
+    trigger: 'cell',
     orders: ['asc', 'desc', null],
   },
   proxyConfig: {
@@ -554,9 +403,7 @@ onMounted(() => {
     <FormModal :customer-data="currentCustomer" @success="refreshGrid" />
     <DetailModal :customer-data="currentDetailCustomer" :brand-name="detailBrandName" />
 
-    <div class="flex h-full gap-4">
-      <!-- 左侧：统计卡片 + 客户列表上下对齐 -->
-      <div class="flex-1 flex flex-col gap-4 min-h-0">
+    <div class="flex flex-col gap-4 h-full min-h-0">
         <!-- 统计卡片 -->
         <div class="flex shrink-0 gap-4">
           <div class="flex-1 rounded-lg bg-blue-50 p-4 dark:bg-blue-950/30 flex items-center justify-between">
@@ -647,6 +494,16 @@ onMounted(() => {
               {{ row.brand ? brandMap.get(row.brand) : '-' }}
             </template>
 
+            <!-- 排序表头 -->
+            <template #sortHeader="{ column, $table }">
+              <span
+                class="cursor-pointer select-none"
+                @click="$table && $table.sort(column.field, column.order === 'asc' ? 'desc' : column.order === 'desc' ? null : 'asc')"
+              >
+                {{ column.title }}<span class="sort-arrows">↓↑</span>
+              </span>
+            </template>
+
             <!-- 自定义存水量列的渲染 -->
             <template #storage="{ row }">
               <div class="flex items-center justify-center gap-1.5">
@@ -694,21 +551,6 @@ onMounted(() => {
           </Grid>
         </div>
       </div>
-
-      <!-- 右侧：品牌图表单独展示 -->
-      <div class="w-[300px] shrink-0 flex flex-col gap-4">
-        <!-- 品牌占比 -->
-        <div class="rounded-lg p-3 flex flex-col flex-1 min-h-0">
-          <div class="text-sm text-gray-500 dark:text-gray-400 mb-1 shrink-0">品牌占比</div>
-          <EchartsUI ref="brandChartRef" height="100%" class="min-h-0 flex-1" />
-        </div>
-        <!-- 品牌销量 -->
-        <div class="rounded-lg p-3 flex flex-col flex-1 min-h-0">
-          <div class="text-sm text-gray-500 dark:text-gray-400 mb-1 shrink-0">品牌销量</div>
-          <EchartsUI ref="salesChartRef" height="100%" class="min-h-0 flex-1" />
-        </div>
-      </div>
-    </div>
   </Page>
 </template>
 
@@ -719,9 +561,8 @@ onMounted(() => {
   display: none !important;
 }
 
-/* 在可排序列的表头标题后添加 ↓↑，字号与表头一致 */
-.vxe-header--column.vxe-sortable .vxe-cell--title::after {
-  content: "↓↑";
+/* 排序箭头文字样式（继承表头字号） */
+.sort-arrows {
   margin-left: 2px;
   color: #999;
   letter-spacing: -1px;
