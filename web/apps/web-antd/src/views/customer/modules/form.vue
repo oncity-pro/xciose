@@ -180,7 +180,7 @@ const [Form, formApi] = useVbenForm({
         triggerFields: ['customer_type'],
       },
       fieldName: 'vip_scheme',
-      label: 'VIP优惠方案',
+      label: '优惠方案',
       formItemClass: 'col-span-2',
     },
     {
@@ -275,7 +275,7 @@ const [Modal, modalApi] = useVbenModal({
 
     const values = await formApi.getValues();
     
-    // 如果客户类型不是VIP，清空VIP优惠方案
+    // 如果客户类型不是VIP，清空优惠方案
     if (values.customer_type !== 'vip') {
       values.vip_scheme = undefined;
     }

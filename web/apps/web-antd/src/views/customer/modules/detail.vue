@@ -124,7 +124,7 @@ function getCustomerTypeLabel(type?: string) {
           {{ getCustomerTypeLabel(customer.customer_type) }}
         </Tag>
       </DescriptionsItem>
-      <DescriptionsItem v-if="customer.customer_type === 'vip'" label="VIP优惠方案">
+      <DescriptionsItem v-if="customer.customer_type === 'vip'" label="优惠方案">
         {{ customer.vip_scheme ? customer.vip_scheme.replace('_', '送') : '-' }}
       </DescriptionsItem>
       <DescriptionsItem label="品牌">
