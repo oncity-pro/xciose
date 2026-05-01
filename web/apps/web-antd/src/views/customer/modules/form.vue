@@ -121,6 +121,8 @@ const [Form, formApi] = useVbenForm({
         placeholder: '请选择客户类型',
         options: CUSTOMER_TYPE_OPTIONS,
         onChange: () => updatePricePerBucket(),
+        popupMatchSelectWidth: false,
+        dropdownStyle: { minWidth: '160px' },
       },
       fieldName: 'customer_type',
       label: '客户类型',
