@@ -426,6 +426,18 @@ class CustomerDetailView(generics.RetrieveUpdateDestroyAPIView):
     """
     queryset = Customer.objects.all()
     serializer_class = CustomerSerializer
+
+    def retrieve(self, request, *args, **kwargs):
+        """
+        重写 retrieve 方法，返回 Vben Admin 期望的格式
+        """
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        return Response({
+            'code': 0,
+            'message': 'success',
+            'data': serializer.data
+        })
     
     def update(self, request, *args, **kwargs):
         """
@@ -550,6 +562,16 @@ class MenuView(APIView):
                     "icon": "lucide:users",
                     "order": 2
                 }
+            },
+            {
+                "name": "DeliveryOrder",
+                "path": "/delivery-order",
+                "component": "/delivery-order/index",
+                "meta": {
+                    "title": "商品出单",
+                    "icon": "lucide:clipboard-list",
+                    "order": 3
+                }
             }
         ]
         
@@ -581,6 +603,67 @@ class DeliveryRecordListView(generics.ListAPIView):
             'message': 'success',
             'data': serializer.data
         })
+
+
+class DeliveryRecordCreateView(APIView):
+    """
+    创建送水记录视图（商品出单）
+    POST /api/v1/delivery-records/
+    """
+    def post(self, request):
+        data = request.data
+        customer_id = data.get('customer')
+        
+        if not customer_id:
+            return Response({
+                'code': 1,
+                'message': '客户编号不能为空'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            customer = Customer.objects.get(id=customer_id)
+        except Customer.DoesNotExist:
+            return Response({
+                'code': 1,
+                'message': '客户不存在'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        serializer = DeliveryRecordSerializer(data=data)
+        if serializer.is_valid():
+            record = serializer.save()
+            
+            # 更新客户相关字段
+            water_delivered = data.get('water_delivered', 0)
+            buckets_returned = data.get('buckets_returned', 0)
+            
+            # 更新总用水量
+            customer.total_water_usage = (customer.total_water_usage or 0) + water_delivered
+            
+            # 更新欠空桶 = 原欠空桶 + 送水量 - 回桶数
+            customer.owed_empty_bucket = (customer.owed_empty_bucket or 0) + water_delivered - buckets_returned
+            
+            # 更新最后送水日期
+            from django.utils import timezone
+            customer.last_delivery_date = data.get('date') or timezone.now().date()
+            
+            # 更新存水量（如果传入）
+            storage_amount = data.get('storage_amount')
+            if storage_amount is not None:
+                customer.storage_amount = storage_amount
+            
+            customer.save()
+            
+            return Response({
+                'code': 0,
+                'message': '出单成功',
+                'data': DeliveryRecordSerializer(record).data
+            }, status=status.HTTP_201_CREATED)
+        
+        return Response({
+            'code': 1,
+            'message': '数据验证失败',
+            'data': serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
 
 
 # ==================== Bucket Deposit Config Views ====================
