@@ -52,6 +52,12 @@ class WaterBrand(models.Model):
         default='bucket',
         verbose_name='品牌类型'
     )
+    specification = models.CharField(
+        max_length=50,
+        blank=True,
+        default='',
+        verbose_name='规格'
+    )
     is_active = models.BooleanField(default=True, verbose_name='是否启用')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')

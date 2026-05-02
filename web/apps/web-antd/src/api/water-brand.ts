@@ -15,6 +15,7 @@ export interface WaterBrand {
   purchase_price?: number;
   brand_type?: 'bucket' | 'bottle' | 'disposable';
   brand_type_display?: string;
+  specification?: string;
   is_active?: boolean;
   created_at?: string;
   updated_at?: string;

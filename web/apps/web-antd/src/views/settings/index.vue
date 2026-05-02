@@ -167,13 +167,13 @@ onMounted(() => {
         <template #title>
           <span class="flex items-center gap-2">
             <Droplets class="size-4" />
-            桶装水品牌管理
+            桶装水
           </span>
         </template>
         <template #extra>
           <Button type="primary" @click="onCreate('bucket')">
             <Plus class="size-5" />
-            新增品牌
+            新增
           </Button>
         </template>
 
@@ -185,8 +185,11 @@ onMounted(() => {
                   <div>
                     <div class="text-base font-medium">{{ item.name }}</div>
                     <div class="mt-1 text-xs text-gray-400">
-                      <span>进货: ¥{{ item.purchase_price || 0 }}</span>
-                      <span class="ml-3">零售: ¥{{ item.price_per_bucket || 0 }}</span>
+                      <span>规格: {{ item.specification || '-' }}</span>
+                      <span class="ml-2">|</span>
+                      <span class="ml-2">进货: ¥{{ item.purchase_price || 0 }}</span>
+                      <span class="ml-2">|</span>
+                      <span class="ml-2">零售: ¥{{ item.price_per_bucket || 0 }}</span>
                     </div>
                   </div>
                   <div class="flex items-center gap-1">
@@ -210,13 +213,13 @@ onMounted(() => {
         <template #title>
           <span class="flex items-center gap-2">
             <Wine class="size-4" />
-            支装水品牌管理
+            支装水
           </span>
         </template>
         <template #extra>
           <Button type="primary" @click="onCreate('bottle')">
             <Plus class="size-5" />
-            新增品牌
+            新增
           </Button>
         </template>
 
@@ -228,8 +231,11 @@ onMounted(() => {
                   <div>
                     <div class="text-base font-medium">{{ item.name }}</div>
                     <div class="mt-1 text-xs text-gray-400">
-                      <span>进货: ¥{{ item.purchase_price || 0 }}</span>
-                      <span class="ml-3">零售: ¥{{ item.price_per_bucket || 0 }}</span>
+                      <span>规格: {{ item.specification || '-' }}</span>
+                      <span class="ml-2">|</span>
+                      <span class="ml-2">进货: ¥{{ item.purchase_price || 0 }}</span>
+                      <span class="ml-2">|</span>
+                      <span class="ml-2">零售: ¥{{ item.price_per_bucket || 0 }}</span>
                     </div>
                   </div>
                   <div class="flex items-center gap-1">
@@ -253,13 +259,13 @@ onMounted(() => {
         <template #title>
           <span class="flex items-center gap-2">
             <Package class="size-4" />
-            一次性桶装水品牌管理
+            一次性桶
           </span>
         </template>
         <template #extra>
           <Button type="primary" @click="onCreate('disposable')">
             <Plus class="size-5" />
-            新增品牌
+            新增
           </Button>
         </template>
 
@@ -271,8 +277,11 @@ onMounted(() => {
                   <div>
                     <div class="text-base font-medium">{{ item.name }}</div>
                     <div class="mt-1 text-xs text-gray-400">
-                      <span>进货: ¥{{ item.purchase_price || 0 }}</span>
-                      <span class="ml-3">零售: ¥{{ item.price_per_bucket || 0 }}</span>
+                      <span>规格: {{ item.specification || '-' }}</span>
+                      <span class="ml-2">|</span>
+                      <span class="ml-2">进货: ¥{{ item.purchase_price || 0 }}</span>
+                      <span class="ml-2">|</span>
+                      <span class="ml-2">零售: ¥{{ item.price_per_bucket || 0 }}</span>
                     </div>
                   </div>
                   <div class="flex items-center gap-1">

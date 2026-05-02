@@ -23,6 +23,67 @@ const brandTypeOptions = [
   { label: '一次性桶装水', value: 'disposable' },
 ];
 
+// 规格选项
+const bucketSpecOptions = [
+  { label: '18.9L', value: '18.9L' },
+  { label: '19L', value: '19L' },
+  { label: '16.8L', value: '16.8L' },
+];
+
+const bottleSpecOptions = [
+  { label: '380mL', value: '380mL' },
+  { label: '550mL', value: '550mL' },
+  { label: '1.5L', value: '1.5L' },
+  { label: '其它', value: '其它' },
+];
+
+const disposableSpecOptions = [
+  { label: '12.8L', value: '12.8L' },
+  { label: '18.9L', value: '18.9L' },
+  { label: '其它', value: '其它' },
+];
+
+function getSpecOptions(brandType: string) {
+  switch (brandType) {
+    case 'bucket':
+      return bucketSpecOptions;
+    case 'bottle':
+      return bottleSpecOptions;
+    case 'disposable':
+      return disposableSpecOptions;
+    default:
+      return bucketSpecOptions;
+  }
+}
+
+function getDefaultSpec(brandType: string) {
+  switch (brandType) {
+    case 'bucket':
+      return '18.9L';
+    case 'bottle':
+      return '380mL';
+    case 'disposable':
+      return '12.8L';
+    default:
+      return '18.9L';
+  }
+}
+
+// 解析规格值：如果在预定义选项中则直接使用，否则归为"其它"
+function resolveSpecValues(
+  specification: string | undefined,
+  brandType: string,
+) {
+  const options = getSpecOptions(brandType).map((o) => o.value);
+  if (specification && options.includes(specification)) {
+    return { specification, specification_custom: '' };
+  }
+  return {
+    specification: '其它',
+    specification_custom: specification || '',
+  };
+}
+
 // 表单配置
 const [Form, formApi] = useVbenForm({
   layout: 'vertical',
@@ -42,9 +103,58 @@ const [Form, formApi] = useVbenForm({
       componentProps: {
         placeholder: '请选择品牌类型',
         options: brandTypeOptions,
+        onChange: (value: string) => {
+          // 品牌类型变化时更新规格选项和默认值
+          const newOptions = getSpecOptions(value);
+          formApi.updateSchema([
+            {
+              componentProps: { options: newOptions },
+              fieldName: 'specification',
+            },
+          ]);
+          formApi.setValues({
+            specification: getDefaultSpec(value),
+            specification_custom: '',
+          });
+          // 自定义规格输入框通过 dependencies.show 自动控制显示/隐藏
+        },
       },
       fieldName: 'brand_type',
       label: '品牌类型',
+      rules: 'required',
+    },
+    {
+      component: 'Select',
+      componentProps: {
+        placeholder: '请选择规格',
+        options: bucketSpecOptions,
+        onChange: (value: string) => {
+          // 选择"其它"时显示自定义输入框
+          const isCustom = value === '其它';
+          // 自定义规格输入框通过 dependencies.show 自动控制显示/隐藏
+          if (!isCustom) {
+            formApi.setValues({ specification_custom: '' });
+          }
+        },
+      },
+      fieldName: 'specification',
+      label: '规格',
+      rules: 'required',
+    },
+    {
+      component: 'Input',
+      componentProps: {
+        placeholder: '请输入自定义规格',
+        maxlength: 50,
+      },
+      dependencies: {
+        show(values) {
+          return values.specification === '其它';
+        },
+        triggerFields: ['specification'],
+      },
+      fieldName: 'specification_custom',
+      label: '自定义规格',
       rules: 'required',
     },
     {
@@ -82,9 +192,16 @@ const [Modal, modalApi] = useVbenModal({
       const values = await formApi.getValues();
       
       try {
+        // 处理规格值：选择"其它"时使用自定义输入框的值
+        const specValue =
+          values.specification === '其它'
+            ? values.specification_custom
+            : values.specification;
+
         const payload: Record<string, any> = {
           name: values.name,
           brand_type: values.brand_type || 'bucket',
+          specification: specValue || getDefaultSpec(values.brand_type),
           // 价格为空时默认传 0，避免后端验证失败
           purchase_price: values.purchase_price ?? 0,
           price_per_bucket: values.price_per_bucket ?? 0,
@@ -125,11 +242,44 @@ const [Modal, modalApi] = useVbenModal({
     if (isOpen) {
       const data = modalApi.getData<WaterBrand>();
       formData.value = data || null;
-      
-      if (data) {
-        formApi.setValues(data);
+
+      if (data && data.id) {
+        // 编辑模式：解析规格值，处理"其它"选项
+        const brandType = data.brand_type || 'bucket';
+        const specOptions = getSpecOptions(brandType);
+        const { specification, specification_custom } = resolveSpecValues(
+          data.specification,
+          brandType,
+        );
+
+        // 先更新规格选项
+        (formApi as any).updateSchema([
+          {
+            componentProps: { options: specOptions },
+            fieldName: 'specification',
+          },
+        ]);
+
+        formApi.setValues({
+          ...data,
+          specification,
+          specification_custom,
+        });
       } else {
+        // 新增模式：根据默认品牌类型设置规格选项和默认值
+        const defaultType = data?.brand_type || 'bucket';
+        const defaultSpec = getDefaultSpec(defaultType);
+        (formApi as any).updateSchema([
+          {
+            componentProps: { options: getSpecOptions(defaultType) },
+            fieldName: 'specification',
+          },
+        ]);
         formApi.resetForm();
+        formApi.setValues({
+          brand_type: defaultType,
+          specification: defaultSpec,
+        });
       }
     }
   },
