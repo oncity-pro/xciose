@@ -7,9 +7,9 @@ import { computed, onMounted, ref, watch, nextTick } from 'vue';
 
 import { Page, useVbenModal } from '@vben/common-ui';
 import { Plus } from '@vben/icons';
-import { Award, Droplets, Eye, MoreHorizontal, Package, Pencil, Search, Trash2, User, UserPlus, Users, UserX } from 'lucide-vue-next';
+import { Award, Eye, Package, Pencil, Search, Trash2, User, UserPlus, Users, UserX } from 'lucide-vue-next';
 
-import { Button, Dropdown, Input, Menu, message, Modal } from 'ant-design-vue';
+import { Button, Input, message, Modal } from 'ant-design-vue';
 
 import { useVbenVxeGrid } from '#/adapter/vxe-table';
 import { 
@@ -240,7 +240,7 @@ const gridOptions: VxeTableGridOptions<Customer> = {
       slots: { default: 'brand' },
     },
     { field: 'openDate', title: '开户日期', width: 120 },
-    { field: 'lastDeliveryDate', title: '最后送水日期', width: 130 },
+    { field: 'lastDeliveryDate', title: '送水日期', width: 130 },
     { field: 'storage_amount', title: '存水量', width: 150, sortable: true, align: 'center', slots: { default: 'storage', header: 'sortHeader' } },
     { field: 'owed_empty_bucket', title: '欠空桶', width: 110, sortable: true, align: 'center', slots: { header: 'sortHeader' } },
     { field: 'bucket_deposit_display', title: '桶押金', width: 150, align: 'center' },
@@ -248,7 +248,7 @@ const gridOptions: VxeTableGridOptions<Customer> = {
     { field: 'total_consumption', title: '消费总额', width: 120, sortable: true, align: 'center', slots: { header: 'sortHeader' }, formatter: ({ cellValue }: { cellValue: number }) => cellValue ? `¥${Number(cellValue).toFixed(2)}` : '¥0.00' },
     {
       title: '操作',
-      width: 80,
+      width: 120,
       fixed: 'right',
       slots: { default: 'action' },
     },
@@ -481,33 +481,17 @@ onMounted(() => {
 
             <!-- 操作列 -->
             <template #action="{ row }">
-              <Dropdown :trigger="['click']">
-                <Button type="link" size="small">
-                  <MoreHorizontal class="size-4" />
+              <div class="flex items-center justify-center gap-1">
+                <Button type="link" size="small" title="详情" @click="onViewDetail(row)">
+                  <Eye class="size-4" />
                 </Button>
-                <template #overlay>
-                  <Menu>
-                    <Menu.Item @click="onViewDetail(row)">
-                      <span class="flex items-center gap-1">
-                        <Eye class="size-3.5" />
-                        详情
-                      </span>
-                    </Menu.Item>
-                    <Menu.Item @click="onEdit(row)">
-                      <span class="flex items-center gap-1">
-                        <Pencil class="size-3.5" />
-                        编辑
-                      </span>
-                    </Menu.Item>
-                    <Menu.Item danger @click="handleDeleteClick(row)">
-                      <span class="flex items-center gap-1">
-                        <Trash2 class="size-3.5" />
-                        删除
-                      </span>
-                    </Menu.Item>
-                  </Menu>
-                </template>
-              </Dropdown>
+                <Button type="link" size="small" title="编辑" @click="onEdit(row)">
+                  <Pencil class="size-4" />
+                </Button>
+                <Button type="link" size="small" danger title="删除" @click="handleDeleteClick(row)">
+                  <Trash2 class="size-4" />
+                </Button>
+              </div>
             </template>
           </Grid>
         </div>
