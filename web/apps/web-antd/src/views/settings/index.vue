@@ -3,7 +3,7 @@ import { onMounted, ref } from 'vue';
 
 import { Page, useVbenModal } from '@vben/common-ui';
 import { Plus } from '@vben/icons';
-import { DollarSign, Droplets } from 'lucide-vue-next';
+import { DollarSign, Droplets, Wine, Package } from 'lucide-vue-next';
 
 import {
   Button,
@@ -25,9 +25,15 @@ import { Pencil } from 'lucide-vue-next';
 
 import BrandForm from './modules/brand-form.vue';
 
-// 品牌列表
-const brandList = ref<WaterBrand[]>([]);
-const loading = ref(false);
+// 品牌列表（按类型）
+const bucketBrandList = ref<WaterBrand[]>([]);
+const bottleBrandList = ref<WaterBrand[]>([]);
+const disposableBrandList = ref<WaterBrand[]>([]);
+const loading = ref({
+  bucket: false,
+  bottle: false,
+  disposable: false,
+});
 
 // 空桶押金
 const depositAmount = ref<number | undefined>(30);
@@ -39,23 +45,33 @@ const [BrandFormModal, brandFormModalApi] = useVbenModal({
   destroyOnClose: true,
 });
 
-// 加载品牌数据
+// 加载品牌数据（按类型分别加载）
 async function loadBrands() {
-  loading.value = true;
+  loading.value.bucket = true;
+  loading.value.bottle = true;
+  loading.value.disposable = true;
   try {
-    const data = await getWaterBrandListApi();
-    brandList.value = data;
+    const [bucketData, bottleData, disposableData] = await Promise.all([
+      getWaterBrandListApi('bucket'),
+      getWaterBrandListApi('bottle'),
+      getWaterBrandListApi('disposable'),
+    ]);
+    bucketBrandList.value = bucketData;
+    bottleBrandList.value = bottleData;
+    disposableBrandList.value = disposableData;
   } catch (error) {
     console.error('加载品牌数据失败:', error);
     message.error('加载品牌数据失败');
   } finally {
-    loading.value = false;
+    loading.value.bucket = false;
+    loading.value.bottle = false;
+    loading.value.disposable = false;
   }
 }
 
 // 新增品牌
-function onCreate() {
-  brandFormModalApi.setData(null).open();
+function onCreate(brandType: string) {
+  brandFormModalApi.setData({ brand_type: brandType }).open();
 }
 
 // 编辑品牌
@@ -146,50 +162,134 @@ onMounted(() => {
         </div>
       </Card>
 
-      <Card :loading="loading" :style="{ width: '20%' }">
+      <!-- 桶装水品牌管理 -->
+      <Card :loading="loading.bucket" :style="{ width: '20%' }">
         <template #title>
           <span class="flex items-center gap-2">
             <Droplets class="size-4" />
             桶装水品牌管理
           </span>
         </template>
-      <template #extra>
-        <Button type="primary" @click="onCreate">
-          <Plus class="size-5" />
-          新增品牌
-        </Button>
-      </template>
+        <template #extra>
+          <Button type="primary" @click="onCreate('bucket')">
+            <Plus class="size-5" />
+            新增品牌
+          </Button>
+        </template>
 
-      <div v-if="brandList.length > 0">
-        <Row :gutter="[16, 16]">
-          <Col v-for="item in brandList" :key="item.id" :span="24">
-            <Card size="small" hoverable>
-              <div class="flex items-center justify-between">
-                <div>
-                  <div class="text-base font-medium">{{ item.name }}</div>
-                  <div class="mt-1 text-xs text-gray-400">
-                    <span>ID: {{ item.id }}</span>
-                    <span class="ml-3">单价: ¥{{ item.price_per_bucket || 0 }}</span>
+        <div v-if="bucketBrandList.length > 0">
+          <Row :gutter="[16, 16]">
+            <Col v-for="item in bucketBrandList" :key="item.id" :span="24">
+              <Card size="small" hoverable>
+                <div class="flex items-center justify-between">
+                  <div>
+                    <div class="text-base font-medium">{{ item.name }}</div>
+                    <div class="mt-1 text-xs text-gray-400">
+                      <span>进货: ¥{{ item.purchase_price || 0 }}</span>
+                      <span class="ml-3">零售: ¥{{ item.price_per_bucket || 0 }}</span>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-1">
+                    <Button type="link" size="small" @click="onEdit(item)">
+                      <Pencil class="size-3.5" />
+                    </Button>
+                    <Button type="link" danger size="small" @click="onDelete(item)">
+                      删除
+                    </Button>
                   </div>
                 </div>
-                <div class="flex items-center gap-1">
-                  <Button type="link" size="small" @click="onEdit(item)">
-                    <Pencil class="size-3.5" />
-                  </Button>
-                  <Button type="link" danger size="small" @click="onDelete(item)">
-                    删除
-                  </Button>
+              </Card>
+            </Col>
+          </Row>
+        </div>
+        <Empty v-else description="暂无品牌数据" />
+      </Card>
+
+      <!-- 支装水品牌管理 -->
+      <Card :loading="loading.bottle" :style="{ width: '20%' }">
+        <template #title>
+          <span class="flex items-center gap-2">
+            <Wine class="size-4" />
+            支装水品牌管理
+          </span>
+        </template>
+        <template #extra>
+          <Button type="primary" @click="onCreate('bottle')">
+            <Plus class="size-5" />
+            新增品牌
+          </Button>
+        </template>
+
+        <div v-if="bottleBrandList.length > 0">
+          <Row :gutter="[16, 16]">
+            <Col v-for="item in bottleBrandList" :key="item.id" :span="24">
+              <Card size="small" hoverable>
+                <div class="flex items-center justify-between">
+                  <div>
+                    <div class="text-base font-medium">{{ item.name }}</div>
+                    <div class="mt-1 text-xs text-gray-400">
+                      <span>进货: ¥{{ item.purchase_price || 0 }}</span>
+                      <span class="ml-3">零售: ¥{{ item.price_per_bucket || 0 }}</span>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-1">
+                    <Button type="link" size="small" @click="onEdit(item)">
+                      <Pencil class="size-3.5" />
+                    </Button>
+                    <Button type="link" danger size="small" @click="onDelete(item)">
+                      删除
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            </Card>
-          </Col>
-        </Row>
+              </Card>
+            </Col>
+          </Row>
+        </div>
+        <Empty v-else description="暂无品牌数据" />
+      </Card>
 
+      <!-- 一次性桶装水品牌管理 -->
+      <Card :loading="loading.disposable" :style="{ width: '20%' }">
+        <template #title>
+          <span class="flex items-center gap-2">
+            <Package class="size-4" />
+            一次性桶装水品牌管理
+          </span>
+        </template>
+        <template #extra>
+          <Button type="primary" @click="onCreate('disposable')">
+            <Plus class="size-5" />
+            新增品牌
+          </Button>
+        </template>
 
-      </div>
-
-      <Empty v-else description="暂无品牌数据" />
-    </Card>
+        <div v-if="disposableBrandList.length > 0">
+          <Row :gutter="[16, 16]">
+            <Col v-for="item in disposableBrandList" :key="item.id" :span="24">
+              <Card size="small" hoverable>
+                <div class="flex items-center justify-between">
+                  <div>
+                    <div class="text-base font-medium">{{ item.name }}</div>
+                    <div class="mt-1 text-xs text-gray-400">
+                      <span>进货: ¥{{ item.purchase_price || 0 }}</span>
+                      <span class="ml-3">零售: ¥{{ item.price_per_bucket || 0 }}</span>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-1">
+                    <Button type="link" size="small" @click="onEdit(item)">
+                      <Pencil class="size-3.5" />
+                    </Button>
+                    <Button type="link" danger size="small" @click="onDelete(item)">
+                      删除
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            </Col>
+          </Row>
+        </div>
+        <Empty v-else description="暂无品牌数据" />
+      </Card>
     </div>
   </Page>
 </template>

@@ -26,13 +26,31 @@ class WaterBrand(models.Model):
     """
     水品牌模型
     """
+    BRAND_TYPE_CHOICES = [
+        ('bucket', '桶装水'),
+        ('bottle', '支装水'),
+        ('disposable', '一次性桶装水'),
+    ]
+
     name = models.CharField(max_length=100, verbose_name='品牌名称')
     description = models.TextField(blank=True, verbose_name='品牌描述')
     price_per_bucket = models.DecimalField(
         max_digits=10,
         decimal_places=2,
         default=0.00,
-        verbose_name='每桶单价'
+        verbose_name='零售价'
+    )
+    purchase_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0.00,
+        verbose_name='进货价'
+    )
+    brand_type = models.CharField(
+        max_length=20,
+        choices=BRAND_TYPE_CHOICES,
+        default='bucket',
+        verbose_name='品牌类型'
     )
     is_active = models.BooleanField(default=True, verbose_name='是否启用')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
@@ -45,6 +63,10 @@ class WaterBrand(models.Model):
 
     def __str__(self):
         return self.name
+
+    @property
+    def brand_type_display(self):
+        return dict(self.BRAND_TYPE_CHOICES).get(self.brand_type, self.brand_type)
 
 
 def generate_customer_id():

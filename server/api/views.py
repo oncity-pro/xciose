@@ -193,10 +193,16 @@ class WaterBrandListCreateView(generics.ListCreateAPIView):
     """
     水品牌列表和创建视图
     """
-    queryset = WaterBrand.objects.all()
     serializer_class = WaterBrandSerializer
     pagination_class = None  # 禁用分页，返回完整列表
-    
+
+    def get_queryset(self):
+        queryset = WaterBrand.objects.all()
+        brand_type = self.request.query_params.get('brand_type', None)
+        if brand_type:
+            queryset = queryset.filter(brand_type=brand_type)
+        return queryset
+
     def list(self, request, *args, **kwargs):
         """
         重写 list 方法，返回 Vben Admin 期望的格式

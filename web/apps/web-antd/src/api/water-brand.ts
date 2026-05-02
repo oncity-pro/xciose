@@ -12,6 +12,9 @@ export interface WaterBrand {
   name: string;
   description?: string;
   price_per_bucket?: number;
+  purchase_price?: number;
+  brand_type?: 'bucket' | 'bottle' | 'disposable';
+  brand_type_display?: string;
   is_active?: boolean;
   created_at?: string;
   updated_at?: string;
@@ -22,8 +25,9 @@ export interface WaterBrand {
 /**
  * 获取启用的水品牌列表
  */
-export async function getWaterBrandListApi(): Promise<WaterBrand[]> {
-  return requestClient.get<WaterBrand[]>('/v1/water-brands/all');
+export async function getWaterBrandListApi(brandType?: string): Promise<WaterBrand[]> {
+  const params = brandType ? { brand_type: brandType } : {};
+  return requestClient.get<WaterBrand[]>('/v1/water-brands/all', { params });
 }
 
 /**

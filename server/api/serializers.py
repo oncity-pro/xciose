@@ -16,9 +16,11 @@ class WaterBrandSerializer(serializers.ModelSerializer):
     """
     水品牌序列化器
     """
+    brand_type_display = serializers.CharField(read_only=True)
+
     class Meta:
         model = WaterBrand
-        fields = ['id', 'name', 'description', 'price_per_bucket', 'is_active', 'created_at', 'updated_at']
+        fields = ['id', 'name', 'description', 'price_per_bucket', 'purchase_price', 'brand_type', 'brand_type_display', 'is_active', 'created_at', 'updated_at']
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 

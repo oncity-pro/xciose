@@ -16,6 +16,13 @@ const getTitle = computed(() => {
   return formData.value?.id ? '编辑品牌' : '新增品牌';
 });
 
+// 品牌类型选项
+const brandTypeOptions = [
+  { label: '桶装水', value: 'bucket' },
+  { label: '支装水', value: 'bottle' },
+  { label: '一次性桶装水', value: 'disposable' },
+];
+
 // 表单配置
 const [Form, formApi] = useVbenForm({
   layout: 'vertical',
@@ -31,15 +38,36 @@ const [Form, formApi] = useVbenForm({
       rules: 'required',
     },
     {
+      component: 'Select',
+      componentProps: {
+        placeholder: '请选择品牌类型',
+        options: brandTypeOptions,
+      },
+      fieldName: 'brand_type',
+      label: '品牌类型',
+      rules: 'required',
+    },
+    {
       component: 'InputNumber',
       componentProps: {
-        placeholder: '请输入每桶单价',
+        placeholder: '请输入进货价',
+        min: 0,
+        precision: 2,
+        style: { width: '100%' },
+      },
+      fieldName: 'purchase_price',
+      label: '进货价（元）',
+    },
+    {
+      component: 'InputNumber',
+      componentProps: {
+        placeholder: '请输入零售价',
         min: 0,
         precision: 2,
         style: { width: '100%' },
       },
       fieldName: 'price_per_bucket',
-      label: '每桶单价（元）',
+      label: '零售价（元）',
     },
   ],
   showDefaultActions: false,
@@ -56,7 +84,9 @@ const [Modal, modalApi] = useVbenModal({
       try {
         const payload: Record<string, any> = {
           name: values.name,
-          // 单价为空时默认传 0，避免后端验证失败
+          brand_type: values.brand_type || 'bucket',
+          // 价格为空时默认传 0，避免后端验证失败
+          purchase_price: values.purchase_price ?? 0,
           price_per_bucket: values.price_per_bucket ?? 0,
         };
         
