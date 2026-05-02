@@ -1,39 +1,31 @@
 <script lang="ts" setup>
 import { onMounted, ref } from 'vue';
 
+import type { VxeTableGridOptions } from '#/adapter/vxe-table';
+import type { WaterBrand } from '#/api/water-brand';
+
 import { Page, useVbenModal } from '@vben/common-ui';
 import { Plus } from '@vben/icons';
-import { DollarSign, Droplets, Wine, Package } from 'lucide-vue-next';
+import { DollarSign, Pencil, Trash2 } from 'lucide-vue-next';
 
 import {
   Button,
   Card,
-  Col,
-  Empty,
   InputNumber,
   Modal as AntdModal,
-  Row,
   message,
 } from 'ant-design-vue';
 
+import { useVbenVxeGrid } from '#/adapter/vxe-table';
 import {
   getBucketDepositConfigApi,
   updateBucketDepositConfigApi,
 } from '#/api/settings';
-import { deleteWaterBrandApi, getWaterBrandListApi, type WaterBrand } from '#/api/water-brand';
-import { Pencil } from 'lucide-vue-next';
+import { deleteWaterBrandApi, getAllWaterBrandsApi } from '#/api/water-brand';
 
 import BrandForm from './modules/brand-form.vue';
 
-// 品牌列表（按类型）
-const bucketBrandList = ref<WaterBrand[]>([]);
-const bottleBrandList = ref<WaterBrand[]>([]);
-const disposableBrandList = ref<WaterBrand[]>([]);
-const loading = ref({
-  bucket: false,
-  bottle: false,
-  disposable: false,
-});
+const loading = ref(false);
 
 // 空桶押金
 const depositAmount = ref<number | undefined>(30);
@@ -45,33 +37,9 @@ const [BrandFormModal, brandFormModalApi] = useVbenModal({
   destroyOnClose: true,
 });
 
-// 加载品牌数据（按类型分别加载）
-async function loadBrands() {
-  loading.value.bucket = true;
-  loading.value.bottle = true;
-  loading.value.disposable = true;
-  try {
-    const [bucketData, bottleData, disposableData] = await Promise.all([
-      getWaterBrandListApi('bucket'),
-      getWaterBrandListApi('bottle'),
-      getWaterBrandListApi('disposable'),
-    ]);
-    bucketBrandList.value = bucketData;
-    bottleBrandList.value = bottleData;
-    disposableBrandList.value = disposableData;
-  } catch (error) {
-    console.error('加载品牌数据失败:', error);
-    message.error('加载品牌数据失败');
-  } finally {
-    loading.value.bucket = false;
-    loading.value.bottle = false;
-    loading.value.disposable = false;
-  }
-}
-
 // 新增品牌
-function onCreate(brandType: string) {
-  brandFormModalApi.setData({ brand_type: brandType }).open();
+function onCreate() {
+  brandFormModalApi.setData({ brand_type: 'bucket' }).open();
 }
 
 // 编辑品牌
@@ -90,13 +58,18 @@ function onDelete(row: WaterBrand) {
       try {
         await deleteWaterBrandApi(row.id);
         message.success('删除成功');
-        loadBrands();
+        refreshGrid();
       } catch (error) {
         console.error('删除失败:', error);
         message.error('删除失败');
       }
     },
   });
+}
+
+// 刷新表格
+function refreshGrid() {
+  gridApi.query();
 }
 
 // 加载空桶押金配置
@@ -131,18 +104,95 @@ async function saveDepositConfig() {
   }
 }
 
+// 表格配置
+const gridOptions: VxeTableGridOptions<WaterBrand> = {
+  rowConfig: {
+    keyField: 'id',
+  },
+  stripe: true,
+  align: 'center',
+  columns: [
+    { title: '序号', type: 'seq', width: 60 },
+    { field: 'name', title: '品牌名称', minWidth: 160 },
+    { field: 'brand_type_display', title: '品牌类型', width: 120 },
+    { field: 'specification', title: '规格', width: 120 },
+    {
+      field: 'purchase_price',
+      title: '进货价',
+      width: 120,
+      formatter: ({ cellValue }: { cellValue: number }) =>
+        cellValue ? `¥${Number(cellValue).toFixed(2)}` : '¥0.00',
+    },
+    {
+      field: 'price_per_bucket',
+      title: '零售价',
+      width: 120,
+      formatter: ({ cellValue }: { cellValue: number }) =>
+        cellValue ? `¥${Number(cellValue).toFixed(2)}` : '¥0.00',
+    },
+    {
+      title: '操作',
+      width: 100,
+      fixed: 'right',
+      slots: { default: 'action' },
+    },
+  ],
+  height: '100%',
+  keepSource: true,
+  pagerConfig: {
+    enabled: true,
+    pageSize: 10,
+    pageSizes: [10, 20, 50],
+  },
+  proxyConfig: {
+    ajax: {
+      query: async ({ page }) => {
+        loading.value = true;
+        try {
+          let data = await getAllWaterBrandsApi();
+          // 模拟分页
+          const total = data.length;
+          const start = (page.currentPage - 1) * page.pageSize;
+          const end = start + page.pageSize;
+          const items = data.slice(start, end);
+          return {
+            items,
+            total,
+          };
+        } catch (error) {
+          console.error('获取品牌列表失败:', error);
+          message.error('获取品牌列表失败');
+          return {
+            items: [],
+            total: 0,
+          };
+        } finally {
+          loading.value = false;
+        }
+      },
+    },
+  },
+  toolbarConfig: {
+    search: false,
+    refresh: true,
+    custom: true,
+  },
+};
+
+const [Grid, gridApi] = useVbenVxeGrid({ gridOptions });
+
 onMounted(() => {
-  loadBrands();
   loadDepositConfig();
 });
 </script>
 
 <template>
   <Page auto-content-height title="基础设置">
-    <BrandFormModal @success="loadBrands" />
+    <BrandFormModal @success="refreshGrid" />
 
-    <div class="flex gap-4">
-      <Card :loading="depositLoading" :style="{ width: '20%' }">
+    <div class="flex flex-col gap-4 h-full min-h-0">
+      <!-- 空桶押金 -->
+      <Card :loading="depositLoading" class="shrink-0">
         <template #title>
           <span class="flex items-center gap-2">
             <DollarSign class="size-4" />
@@ -162,143 +212,29 @@ onMounted(() => {
         </div>
       </Card>
 
-      <!-- 桶装水品牌管理 -->
-      <Card :loading="loading.bucket" :style="{ width: '20%' }">
-        <template #title>
-          <span class="flex items-center gap-2">
-            <Droplets class="size-4" />
-            桶装水
-          </span>
-        </template>
-        <template #extra>
-          <Button type="primary" @click="onCreate('bucket')">
-            <Plus class="size-5" />
-            新增
-          </Button>
-        </template>
+      <!-- 品牌列表 -->
+      <div class="min-h-0 flex-1">
+        <Grid :loading="loading" class="h-full">
+          <template #toolbar-tools>
+            <Button type="primary" @click="onCreate">
+              <Plus class="size-5" />
+              新增品牌
+            </Button>
+          </template>
 
-        <div v-if="bucketBrandList.length > 0">
-          <Row :gutter="[16, 16]">
-            <Col v-for="item in bucketBrandList" :key="item.id" :span="24">
-              <Card size="small" hoverable>
-                <div class="flex items-center justify-between">
-                  <div>
-                    <div class="text-base font-medium">{{ item.name }}</div>
-                    <div class="mt-1 text-xs text-gray-400">
-                      <span>规格: {{ item.specification || '-' }}</span>
-                      <span class="ml-2">|</span>
-                      <span class="ml-2">进货: ¥{{ item.purchase_price || 0 }}</span>
-                      <span class="ml-2">|</span>
-                      <span class="ml-2">零售: ¥{{ item.price_per_bucket || 0 }}</span>
-                    </div>
-                  </div>
-                  <div class="flex items-center gap-1">
-                    <Button type="link" size="small" @click="onEdit(item)">
-                      <Pencil class="size-3.5" />
-                    </Button>
-                    <Button type="link" danger size="small" @click="onDelete(item)">
-                      删除
-                    </Button>
-                  </div>
-                </div>
-              </Card>
-            </Col>
-          </Row>
-        </div>
-        <Empty v-else description="暂无品牌数据" />
-      </Card>
-
-      <!-- 支装水品牌管理 -->
-      <Card :loading="loading.bottle" :style="{ width: '20%' }">
-        <template #title>
-          <span class="flex items-center gap-2">
-            <Wine class="size-4" />
-            支装水
-          </span>
-        </template>
-        <template #extra>
-          <Button type="primary" @click="onCreate('bottle')">
-            <Plus class="size-5" />
-            新增
-          </Button>
-        </template>
-
-        <div v-if="bottleBrandList.length > 0">
-          <Row :gutter="[16, 16]">
-            <Col v-for="item in bottleBrandList" :key="item.id" :span="24">
-              <Card size="small" hoverable>
-                <div class="flex items-center justify-between">
-                  <div>
-                    <div class="text-base font-medium">{{ item.name }}</div>
-                    <div class="mt-1 text-xs text-gray-400">
-                      <span>规格: {{ item.specification || '-' }}</span>
-                      <span class="ml-2">|</span>
-                      <span class="ml-2">进货: ¥{{ item.purchase_price || 0 }}</span>
-                      <span class="ml-2">|</span>
-                      <span class="ml-2">零售: ¥{{ item.price_per_bucket || 0 }}</span>
-                    </div>
-                  </div>
-                  <div class="flex items-center gap-1">
-                    <Button type="link" size="small" @click="onEdit(item)">
-                      <Pencil class="size-3.5" />
-                    </Button>
-                    <Button type="link" danger size="small" @click="onDelete(item)">
-                      删除
-                    </Button>
-                  </div>
-                </div>
-              </Card>
-            </Col>
-          </Row>
-        </div>
-        <Empty v-else description="暂无品牌数据" />
-      </Card>
-
-      <!-- 一次性桶装水品牌管理 -->
-      <Card :loading="loading.disposable" :style="{ width: '20%' }">
-        <template #title>
-          <span class="flex items-center gap-2">
-            <Package class="size-4" />
-            一次性桶
-          </span>
-        </template>
-        <template #extra>
-          <Button type="primary" @click="onCreate('disposable')">
-            <Plus class="size-5" />
-            新增
-          </Button>
-        </template>
-
-        <div v-if="disposableBrandList.length > 0">
-          <Row :gutter="[16, 16]">
-            <Col v-for="item in disposableBrandList" :key="item.id" :span="24">
-              <Card size="small" hoverable>
-                <div class="flex items-center justify-between">
-                  <div>
-                    <div class="text-base font-medium">{{ item.name }}</div>
-                    <div class="mt-1 text-xs text-gray-400">
-                      <span>规格: {{ item.specification || '-' }}</span>
-                      <span class="ml-2">|</span>
-                      <span class="ml-2">进货: ¥{{ item.purchase_price || 0 }}</span>
-                      <span class="ml-2">|</span>
-                      <span class="ml-2">零售: ¥{{ item.price_per_bucket || 0 }}</span>
-                    </div>
-                  </div>
-                  <div class="flex items-center gap-1">
-                    <Button type="link" size="small" @click="onEdit(item)">
-                      <Pencil class="size-3.5" />
-                    </Button>
-                    <Button type="link" danger size="small" @click="onDelete(item)">
-                      删除
-                    </Button>
-                  </div>
-                </div>
-              </Card>
-            </Col>
-          </Row>
-        </div>
-        <Empty v-else description="暂无品牌数据" />
-      </Card>
+          <!-- 操作列 -->
+          <template #action="{ row }">
+            <div class="flex items-center justify-center gap-1">
+              <Button type="link" size="small" title="编辑" @click="onEdit(row)">
+                <Pencil class="size-4" />
+              </Button>
+              <Button type="link" size="small" danger title="删除" @click="onDelete(row)">
+                <Trash2 class="size-4" />
+              </Button>
+            </div>
+          </template>
+        </Grid>
+      </div>
     </div>
   </Page>
 </template>

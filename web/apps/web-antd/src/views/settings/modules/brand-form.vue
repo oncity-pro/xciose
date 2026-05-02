@@ -28,6 +28,7 @@ const bucketSpecOptions = [
   { label: '18.9L', value: '18.9L' },
   { label: '19L', value: '19L' },
   { label: '16.8L', value: '16.8L' },
+  { label: '其它', value: '其它' },
 ];
 
 const bottleSpecOptions = [
@@ -103,6 +104,7 @@ const [Form, formApi] = useVbenForm({
       componentProps: {
         placeholder: '请选择品牌类型',
         options: brandTypeOptions,
+        dropdownMatchSelectWidth: false,
         onChange: (value: string) => {
           // 品牌类型变化时更新规格选项和默认值
           const newOptions = getSpecOptions(value);
@@ -287,7 +289,7 @@ const [Modal, modalApi] = useVbenModal({
 </script>
 
 <template>
-  <Modal :title="getTitle">
+  <Modal :title="getTitle" width="520">
     <Form class="mx-4" />
   </Modal>
 </template>
