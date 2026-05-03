@@ -12,6 +12,7 @@ import { useDebounceFn } from '@vueuse/core';
 
 import {
   AnalysisChartCard,
+  useVbenModal,
   WorkbenchHeader,
   WorkbenchProject,
   WorkbenchQuickNav,
@@ -28,6 +29,7 @@ import { useVbenVxeGrid } from '#/adapter/vxe-table';
 import type { VxeTableGridOptions } from '#/adapter/vxe-table';
 import { getAllCustomersApi, type Customer } from '#/api/customer';
 
+import Detail from '../../customer/modules/detail.vue';
 import AnalyticsVisitsSource from '../analytics/analytics-visits-source.vue';
 
 const userStore = useUserStore();
@@ -197,6 +199,63 @@ const searchResults = ref<Customer[]>([]);
 const showSearchResults = ref(false);
 const selectedCustomers = ref<Customer[]>([]);
 const searchLoading = ref(false);
+const completedCustomers = ref<Customer[]>([]);
+const completedTodayIds = ref<Set<string>>(new Set());
+
+function completeCustomer(row: Customer) {
+  selectedCustomers.value = selectedCustomers.value.filter((c) => c.id !== row.id);
+  if (!completedTodayIds.value.has(row.id)) {
+    completedCustomers.value.push(row);
+    completedTodayIds.value.add(row.id);
+  }
+}
+
+// ============ 本地持久化（按天） ============
+const STORAGE_KEY = 'workstation_today_delivery';
+const STORAGE_DATE_KEY = 'workstation_today_date';
+
+function saveState() {
+  const data = {
+    selected: selectedCustomers.value,
+    completed: completedCustomers.value,
+    completedIds: Array.from(completedTodayIds.value),
+  };
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  localStorage.setItem(STORAGE_DATE_KEY, new Date().toDateString());
+}
+
+function loadState() {
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if (saved) {
+    try {
+      const data = JSON.parse(saved);
+      selectedCustomers.value = data.selected || [];
+      completedCustomers.value = data.completed || [];
+      completedTodayIds.value = new Set(data.completedIds || []);
+    } catch (e) {
+      console.error('加载今日送水数据失败:', e);
+    }
+  }
+}
+
+loadState();
+
+watch([selectedCustomers, completedCustomers], saveState, { deep: true });
+
+// 详情弹窗
+const [DetailModal, detailModalApi] = useVbenModal({
+  connectedComponent: Detail,
+  destroyOnClose: true,
+});
+
+const currentDetailCustomer = ref<Customer | null>(null);
+const detailBrandName = ref<string>('');
+
+function onViewDetail(row: Customer) {
+  currentDetailCustomer.value = { ...row };
+  detailBrandName.value = row.brand_name ?? '';
+  detailModalApi.open();
+}
 
 const debouncedSearch = useDebounceFn(async (keyword: string) => {
   if (!keyword.trim()) {
@@ -240,11 +299,14 @@ function handleSearchBlur() {
 
 function handleEnter() {
   if (showSearchResults.value && searchResults.value.length > 0) {
-    addCustomer(searchResults.value[0]);
+    addCustomer(searchResults.value[0]!);
   }
 }
 
 function addCustomer(customer: Customer) {
+  if (completedTodayIds.value.has(customer.id)) {
+    return;
+  }
   selectedCustomers.value.push(customer);
   searchKeyword.value = '';
   searchResults.value = [];
@@ -288,7 +350,7 @@ const gridOptions: VxeTableGridOptions<Customer> = {
     },
     {
       title: '操作',
-      width: 100,
+      width: 150,
       slots: { default: 'action' },
     },
   ],
@@ -313,6 +375,13 @@ const tableData = computed(() => {
   }
   return data;
 });
+
+const selectedRealCount = computed(
+  () => selectedCustomers.value.filter((c) => !c.id?.startsWith('__empty__')).length,
+);
+const totalCount = computed(() => selectedRealCount.value + completedCustomers.value.length);
+const completedCount = computed(() => completedCustomers.value.length);
+const inProgressCount = computed(() => selectedRealCount.value);
 
 watch(
   tableData,
@@ -353,66 +422,76 @@ function navTo(nav: WorkbenchProjectItem | WorkbenchQuickNavItem) {
         <!-- 今日送水客户名单 -->
         <Card class="mt-5" title="今日送水客户名单" :body-style="{ padding: 0 }">
           <div class="px-4 pt-3">
-            <div class="relative w-full">
-              <Input
-                v-model:value="searchKeyword"
-                allow-clear
-                placeholder="搜索客户编号或姓名"
-                style="width: 240px"
-                @blur="handleSearchBlur"
-                @focus="handleSearchFocus"
-                @keydown.enter="handleEnter"
-              >
-                <template #prefix>
-                  <Search class="size-4 text-gray-400" />
-                </template>
-              </Input>
-              <div
-                v-if="(searchResults.length > 0 || searchLoading) && showSearchResults"
-                class="absolute z-50 mt-1 w-[240px] rounded border bg-white shadow-lg dark:border-gray-700 dark:bg-[#1e1e1e]"
-              >
-                <div v-if="searchLoading" class="px-3 py-2 text-sm text-gray-400 dark:text-gray-500">
-                  搜索中...
-                </div>
-                <div
-                  v-for="customer in searchResults"
-                  v-else
-                  :key="customer.id"
-                  class="flex items-center justify-between gap-2 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800"
+            <div class="flex items-center justify-between">
+              <div class="relative">
+                <Input
+                  v-model:value="searchKeyword"
+                  allow-clear
+                  placeholder="搜索客户编号或姓名"
+                  style="width: 240px"
+                  @blur="handleSearchBlur"
+                  @focus="handleSearchFocus"
+                  @keydown.enter="handleEnter"
                 >
-                  <div class="flex flex-1 items-center gap-3 text-sm">
-                    <span class="w-10 shrink-0 font-medium">
-                      {{ /^\d+$/.test(customer.id) ? String(Number(customer.id)) : customer.id }}
-                    </span>
-                    <span class="flex-1 truncate text-gray-700 dark:text-gray-200" :title="customer.name">
-                      {{ customer.name }}
-                    </span>
+                  <template #prefix>
+                    <Search class="size-4 text-gray-400" />
+                  </template>
+                </Input>
+                <div
+                  v-if="(searchResults.length > 0 || searchLoading) && showSearchResults"
+                  class="absolute z-50 mt-1 w-[240px] rounded border bg-white shadow-lg dark:border-gray-700 dark:bg-[#1e1e1e]"
+                >
+                  <div v-if="searchLoading" class="px-3 py-2 text-sm text-gray-400 dark:text-gray-500">
+                    搜索中...
                   </div>
-                  <Button type="link" size="small" @click="addCustomer(customer)">
-                    <Plus class="size-4" />
-                  </Button>
+                  <div
+                    v-for="customer in searchResults"
+                    v-else
+                    :key="customer.id"
+                    class="flex cursor-pointer items-center justify-between gap-2 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800"
+                    @click="addCustomer(customer)"
+                  >
+                    <div class="flex flex-1 items-center gap-3 text-sm">
+                      <span class="w-10 shrink-0 font-medium">
+                        {{ /^\d+$/.test(customer.id) ? String(Number(customer.id)) : customer.id }}
+                      </span>
+                      <span class="flex-1 truncate text-gray-700 dark:text-gray-200" :title="customer.name">
+                        {{ customer.name }}
+                      </span>
+                    </div>
+                    <Button type="link" size="small" @click.stop="addCustomer(customer)">
+                      <Plus class="size-4" />
+                    </Button>
+                  </div>
+                  <div v-if="!searchLoading && searchResults.length === 0 && searchKeyword.trim()" class="px-3 py-2 text-sm text-gray-400 dark:text-gray-500">
+                    未找到匹配客户
+                  </div>
                 </div>
-                <div v-if="!searchLoading && searchResults.length === 0 && searchKeyword.trim()" class="px-3 py-2 text-sm text-gray-400 dark:text-gray-500">
-                  未找到匹配客户
-                </div>
+              </div>
+              <div class="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
+                <span>进行中：{{ inProgressCount }}位</span>
+                <span>已完成：{{ completedCount }}位</span>
               </div>
             </div>
           </div>
           <div class="pt-2">
             <Grid class="w-full">
               <template #action="{ row }">
-                <Button
-                  v-if="!row.id?.startsWith('__empty__')"
-                  danger
-                  size="small"
-                  type="link"
-                  @click="removeCustomer(row.id)"
-                >
-                  移除
-                </Button>
+                <div v-if="!row.id?.startsWith('__empty__')" class="flex items-center justify-center gap-1">
+                  <Button danger size="small" type="link" @click="onViewDetail(row)">
+                    出单
+                  </Button>
+                  <Button class="text-white" size="small" type="link" @click="completeCustomer(row)">
+                    已完成
+                  </Button>
+                  <Button size="small" type="link" @click="removeCustomer(row.id)">
+                    移除
+                  </Button>
+                </div>
               </template>
             </Grid>
           </div>
+          <DetailModal :customer-data="currentDetailCustomer" :brand-name="detailBrandName" />
         </Card>
         <WorkbenchTrends :items="trendItems" class="mt-5" title="最新动态" />
       </div>
