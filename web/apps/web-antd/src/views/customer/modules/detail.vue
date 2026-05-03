@@ -32,27 +32,25 @@ const emptyBucketDeposit = computed(() => {
 });
 
 const deliveryGridOptions: VxeTableGridOptions<any> = {
-  rowConfig: {
+  cellConfig: {
     height: 32,
   },
   headerRowStyle: {
     height: '32px',
   },
+  keepSource: true,
   editConfig: {
     trigger: 'click',
     mode: 'cell',
     showStatus: true,
-    activeMethod: (params: any) => {
-      console.log('edit activeMethod', params.row?.id, params.column?.field);
-      return !String(params.row?.id).startsWith('__empty__');
-    },
+    beforeEditMethod: () => true,
   },
   columns: [
     {
       field: 'date',
       title: '日期',
       width: 120,
-      editRender: { name: 'input' },
+      editRender: { name: 'date' },
     },
     {
       field: 'water_delivered',
@@ -87,16 +85,7 @@ const deliveryGridOptions: VxeTableGridOptions<any> = {
   ],
   pagerConfig: {},
   showOverflow: true,
-  proxyConfig: {
-    ajax: {
-      query: async () => {
-        return {
-          items: displayDeliveryRecords.value,
-          total: displayDeliveryRecords.value.length,
-        };
-      },
-    },
-  },
+  data: [],
 };
 
 const [DeliveryGrid, deliveryGridApi] = useVbenVxeGrid({
@@ -126,7 +115,9 @@ async function loadDeliveryRecords() {
   try {
     const data = await getDeliveryRecordListApi(customer.value.id);
     deliveryRecords.value = data;
-    await deliveryGridApi.reload();
+    await deliveryGridApi.setGridOptions({
+      data: displayDeliveryRecords.value,
+    });
   } catch (error) {
     console.error('加载送水记录失败:', error);
   } finally {
@@ -151,6 +142,13 @@ async function handleEditClosed({ row }: any) {
     console.error('更新送水记录失败:', error);
   }
 }
+
+// 把 edit-closed 事件绑定到 gridEvents 上，确保 VxeGrid 能正确接收
+deliveryGridApi.setState({
+  gridEvents: {
+    editClosed: handleEditClosed,
+  },
+});
 
 const [Modal, modalApi] = useVbenModal({
   async onOpenChange(isOpen: boolean) {
@@ -270,7 +268,7 @@ function getCustomerTypeLabel(type?: string) {
         :head-style="{ padding: '6px 12px', minHeight: 'auto', textAlign: 'center' }"
         :body-style="{ padding: '8px' }"
       >
-        <DeliveryGrid class="w-full" @edit-closed="handleEditClosed" />
+        <DeliveryGrid class="w-full" />
       </Card>
     </div>
   </Modal>
