@@ -5,10 +5,15 @@ import { computed, nextTick, ref, watch } from 'vue';
 
 import { useVbenModal } from '@vben/common-ui';
 
-import { Button, Card, Descriptions, DescriptionsItem, Tag } from 'ant-design-vue';
+import { Button, Card, Descriptions, DescriptionsItem, Modal, Tag } from 'ant-design-vue';
 
 import { getBucketDepositConfigApi } from '#/api/settings';
-import { getDeliveryRecordListApi, updateDeliveryRecordApi } from '#/api/delivery-record';
+import {
+  createDeliveryRecordApi,
+  deleteDeliveryRecordApi,
+  getDeliveryRecordListApi,
+  updateDeliveryRecordApi,
+} from '#/api/delivery-record';
 import type { DeliveryRecord } from '#/api/delivery-record';
 
 import { useVbenVxeGrid } from '#/adapter/vxe-table';
@@ -90,7 +95,7 @@ const deliveryGridOptions: VxeTableGridOptions<any> = {
     {
       field: 'action',
       title: '操作',
-      width: 80,
+      width: 120,
       fixed: 'right',
       slots: { default: 'action' },
     },
@@ -195,7 +200,7 @@ deliveryGridApi.setState({
   },
 });
 
-const [Modal, modalApi] = useVbenModal({
+const [VbenModal, modalApi] = useVbenModal({
   async onOpenChange(isOpen: boolean) {
     if (isOpen) {
       modalApi.setState({ title: '客户详情' });
@@ -223,22 +228,72 @@ function handleAddRow(row: any) {
 }
 
 async function handleSaveRow(row: any) {
-  if (String(row.id).startsWith('__empty__')) return;
-  if (!row.id) return;
+  const isEmptyRow = String(row.id).startsWith('__empty__');
 
   try {
-    await updateDeliveryRecordApi(row.id, {
-      date: row.date,
-      water_delivered: row.water_delivered,
-      buckets_returned: row.buckets_returned,
-      owed_empty_buckets: row.owed_empty_buckets,
-      storage_amount: row.storage_amount,
-      remark: row.remark,
-    });
-    editableRowIds.value.delete(row.id);
+    if (isEmptyRow) {
+      // 空行：创建新记录
+      const newRecord = await createDeliveryRecordApi({
+        customer: String(customer.value!.id),
+        date: row.date,
+        water_delivered: Number(row.water_delivered) || 0,
+        buckets_returned: Number(row.buckets_returned) || 0,
+        owed_empty_buckets: Number(row.owed_empty_buckets) || 0,
+        storage_amount: Number(row.storage_amount) || 0,
+        remark: row.remark,
+      });
+      // 添加到源数据头部，表格会自动刷新
+      deliveryRecords.value.unshift(newRecord);
+      await deliveryGridApi.setGridOptions({
+        data: displayDeliveryRecords.value,
+      });
+      // 更新可编辑状态：移除旧空行ID，添加新记录ID
+      editableRowIds.value.delete(row.id);
+      editableRowIds.value.add(newRecord.id);
+    } else {
+      // 真实数据行：更新记录
+      await updateDeliveryRecordApi(row.id, {
+        date: row.date,
+        water_delivered: row.water_delivered,
+        buckets_returned: row.buckets_returned,
+        owed_empty_buckets: row.owed_empty_buckets,
+        storage_amount: row.storage_amount,
+        remark: row.remark,
+      });
+      editableRowIds.value.delete(row.id);
+    }
   } catch (error) {
     console.error('保存送水记录失败:', error);
   }
+}
+
+function handleDeleteRow(row: any) {
+  // 空行直接移除，无需调用后端
+  if (String(row.id).startsWith('__empty__')) {
+    editableRowIds.value.delete(row.id);
+    return;
+  }
+
+  Modal.confirm({
+    title: '确认删除',
+    content: '确定要删除这条送水记录吗？删除后将同步回滚客户的累计数据。',
+    okText: '删除',
+    okType: 'danger',
+    cancelText: '取消',
+    async onOk() {
+      try {
+        await deleteDeliveryRecordApi(row.id);
+        // 从本地数据中移除
+        deliveryRecords.value = deliveryRecords.value.filter((r) => r.id !== row.id);
+        editableRowIds.value.delete(row.id);
+        await deliveryGridApi.setGridOptions({
+          data: displayDeliveryRecords.value,
+        });
+      } catch (error) {
+        console.error('删除送水记录失败:', error);
+      }
+    },
+  });
 }
 
 function getCustomerTypeColor(type?: string) {
@@ -281,7 +336,7 @@ function getCustomerTypeLabel(type?: string) {
 </script>
 
 <template>
-  <Modal :footer="false" class="w-[1080px] detail-modal-no-scroll">
+  <VbenModal :footer="false" class="w-[1080px] detail-modal-no-scroll">
     <div v-if="customer" class="mb-2 text-center font-semibold text-base">
       客户信息
     </div>
@@ -345,28 +400,58 @@ function getCustomerTypeLabel(type?: string) {
         :body-style="{ padding: '8px' }"
       >
         <DeliveryGrid class="w-full">
-          <template #action="{ row }">
-            <Button
-              v-if="editableRowIds.has(row.id)"
-              type="link"
-              size="small"
-              @click="handleSaveRow(row)"
-            >
-              保存
-            </Button>
-            <Button
-              v-else
-              type="link"
-              size="small"
-              @click="handleAddRow(row)"
-            >
-              新增
-            </Button>
+          <template #action="{ row, $rowIndex }">
+            <div class="flex items-center gap-1">
+              <template v-if="!String(row.id).startsWith('__empty__')">
+                <Button
+                  v-if="editableRowIds.has(row.id)"
+                  type="link"
+                  size="small"
+                  @click="handleSaveRow(row)"
+                >
+                  保存
+                </Button>
+                <Button
+                  v-else
+                  type="link"
+                  size="small"
+                  @click="handleAddRow(row)"
+                >
+                  编辑
+                </Button>
+                <Button
+                  type="link"
+                  danger
+                  size="small"
+                  @click="handleDeleteRow(row)"
+                >
+                  删除
+                </Button>
+              </template>
+              <template v-else-if="$rowIndex === deliveryRecords.value.length">
+                <Button
+                  v-if="editableRowIds.has(row.id)"
+                  type="link"
+                  size="small"
+                  @click="handleSaveRow(row)"
+                >
+                  保存
+                </Button>
+                <Button
+                  v-else
+                  type="link"
+                  size="small"
+                  @click="handleAddRow(row)"
+                >
+                  新增
+                </Button>
+              </template>
+            </div>
           </template>
         </DeliveryGrid>
       </Card>
     </div>
-  </Modal>
+  </VbenModal>
 </template>
 
 <style>

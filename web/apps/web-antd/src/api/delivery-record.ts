@@ -34,10 +34,11 @@ export interface DeliveryRecordCreateData {
 export async function getDeliveryRecordListApi(
   customerId: string,
 ): Promise<DeliveryRecord[]> {
-  const res = await requestClient.get<{ code: number; data: DeliveryRecord[] }>(
+  const res = await requestClient.get<any>(
     `/v1/customers/${customerId}/delivery-records`,
   );
-  return res.data || [];
+  // 兼容拦截器提取后的直接数据和原始响应
+  return Array.isArray(res) ? res : res?.data ?? [];
 }
 
 /**
@@ -47,11 +48,9 @@ export async function getDeliveryRecordListApi(
 export async function createDeliveryRecordApi(
   data: DeliveryRecordCreateData,
 ): Promise<DeliveryRecord> {
-  const res = await requestClient.post<{ code: number; data: DeliveryRecord }>(
-    '/v1/delivery-records',
-    data,
-  );
-  return res.data;
+  const res = await requestClient.post<any>('/v1/delivery-records', data);
+  // 兼容拦截器提取后的直接数据和原始响应
+  return res?.id ? res : res?.data;
 }
 
 /**
@@ -63,9 +62,15 @@ export async function updateDeliveryRecordApi(
   id: number,
   data: Partial<DeliveryRecordCreateData>,
 ): Promise<DeliveryRecord> {
-  const res = await requestClient.put<{ code: number; data: DeliveryRecord }>(
-    `/v1/delivery-records/${id}`,
-    data,
-  );
-  return res.data;
+  const res = await requestClient.put<any>(`/v1/delivery-records/${id}`, data);
+  // 兼容拦截器提取后的直接数据和原始响应
+  return res?.id ? res : res?.data;
+}
+
+/**
+ * 删除送水记录
+ * @param id 记录ID
+ */
+export async function deleteDeliveryRecordApi(id: number): Promise<void> {
+  await requestClient.delete<any>(`/v1/delivery-records/${id}/delete`);
 }

@@ -796,6 +796,49 @@ class DeliveryRecordUpdateView(APIView):
         }, status=status.HTTP_400_BAD_REQUEST)
 
 
+class DeliveryRecordDeleteView(APIView):
+    """
+    删除送水记录视图
+    DELETE /api/v1/delivery-records/<pk>/
+    """
+    def delete(self, request, pk):
+        try:
+            record = DeliveryRecord.objects.get(pk=pk)
+        except DeliveryRecord.DoesNotExist:
+            return Response({
+                'code': 1,
+                'message': '记录不存在'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        customer = record.customer
+        water_delivered = record.water_delivered or 0
+        buckets_returned = record.buckets_returned or 0
+        
+        # 回滚客户累计数据
+        customer.total_water_usage = (customer.total_water_usage or 0) - water_delivered
+        customer.owed_empty_bucket = (customer.owed_empty_bucket or 0) - water_delivered + buckets_returned
+        
+        # 删除记录
+        record.delete()
+        
+        # 更新最后送水日期为最新记录的日期
+        latest_record = DeliveryRecord.objects.filter(customer=customer).order_by('-date', '-id').first()
+        if latest_record:
+            customer.last_delivery_date = latest_record.date
+            customer.storage_amount = latest_record.storage_amount or 0
+        else:
+            customer.last_delivery_date = None
+            customer.storage_amount = 0
+        
+        customer.save()
+        
+        return Response({
+            'code': 0,
+            'message': '删除成功',
+            'data': None
+        }, status=status.HTTP_200_OK)
+
+
 # ==================== Bucket Deposit Config Views ====================
 
 class BucketDepositConfigView(APIView):
