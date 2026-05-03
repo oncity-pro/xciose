@@ -733,6 +733,69 @@ class DeliveryRecordCreateView(APIView):
         }, status=status.HTTP_400_BAD_REQUEST)
 
 
+class DeliveryRecordUpdateView(APIView):
+    """
+    更新送水记录视图
+    PUT /api/v1/delivery-records/<pk>/
+    """
+    def put(self, request, pk):
+        try:
+            record = DeliveryRecord.objects.get(pk=pk)
+        except DeliveryRecord.DoesNotExist:
+            return Response({
+                'code': 1,
+                'message': '记录不存在'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # 保存旧值用于计算差值
+        old_water = record.water_delivered or 0
+        old_buckets = record.buckets_returned or 0
+        old_storage = record.storage_amount or 0
+        old_date = record.date
+        
+        serializer = DeliveryRecordSerializer(record, data=request.data, partial=True)
+        if serializer.is_valid():
+            updated_record = serializer.save()
+            
+            # 更新客户累计数据
+            customer = record.customer
+            new_water = updated_record.water_delivered or 0
+            new_buckets = updated_record.buckets_returned or 0
+            new_storage = updated_record.storage_amount or 0
+            
+            delta_water = new_water - old_water
+            delta_buckets = new_buckets - old_buckets
+            
+            if delta_water != 0:
+                customer.total_water_usage = (customer.total_water_usage or 0) + delta_water
+            
+            if delta_water != 0 or delta_buckets != 0:
+                customer.owed_empty_bucket = (customer.owed_empty_bucket or 0) + delta_water - delta_buckets
+            
+            if new_storage != old_storage:
+                customer.storage_amount = new_storage
+            
+            # 如果日期发生变化，更新最后送水日期为最新记录的日期
+            if updated_record.date != old_date:
+                latest_record = DeliveryRecord.objects.filter(customer=customer).order_by('-date', '-id').first()
+                if latest_record:
+                    customer.last_delivery_date = latest_record.date
+            
+            customer.save()
+            
+            return Response({
+                'code': 0,
+                'message': '更新成功',
+                'data': DeliveryRecordSerializer(updated_record).data
+            })
+        
+        return Response({
+            'code': 1,
+            'message': '数据验证失败',
+            'data': serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+
 # ==================== Bucket Deposit Config Views ====================
 
 class BucketDepositConfigView(APIView):

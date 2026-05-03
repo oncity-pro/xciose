@@ -53,3 +53,19 @@ export async function createDeliveryRecordApi(
   );
   return res.data;
 }
+
+/**
+ * 更新送水记录
+ * @param id 记录ID
+ * @param data 更新数据
+ */
+export async function updateDeliveryRecordApi(
+  id: number,
+  data: Partial<DeliveryRecordCreateData>,
+): Promise<DeliveryRecord> {
+  const res = await requestClient.put<{ code: number; data: DeliveryRecord }>(
+    `/v1/delivery-records/${id}`,
+    data,
+  );
+  return res.data;
+}

@@ -1,15 +1,18 @@
 <script lang="ts" setup>
 import type { Customer } from '#/api/customer';
 
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 
 import { useVbenModal } from '@vben/common-ui';
 
-import { Card, Descriptions, DescriptionsItem, Table, Tag } from 'ant-design-vue';
+import { Card, Descriptions, DescriptionsItem, Tag } from 'ant-design-vue';
 
 import { getBucketDepositConfigApi } from '#/api/settings';
-import { getDeliveryRecordListApi } from '#/api/delivery-record';
+import { getDeliveryRecordListApi, updateDeliveryRecordApi } from '#/api/delivery-record';
 import type { DeliveryRecord } from '#/api/delivery-record';
+
+import { useVbenVxeGrid } from '#/adapter/vxe-table';
+import type { VxeTableGridOptions } from '#/adapter/vxe-table';
 
 const props = defineProps<{
   customerData?: Customer | null;
@@ -23,18 +26,92 @@ const depositPerBucket = ref<number>(30);
 const deliveryRecords = ref<DeliveryRecord[]>([]);
 const deliveryLoading = ref(false);
 
-const deliveryColumns = [
-  { title: '日期', dataIndex: 'date', key: 'date', width: 120 },
-  { title: '送水量', dataIndex: 'water_delivered', key: 'water_delivered', width: 100, align: 'center' as const },
-  { title: '回桶数', dataIndex: 'buckets_returned', key: 'buckets_returned', width: 100, align: 'center' as const },
-  { title: '欠空桶', dataIndex: 'owed_empty_buckets', key: 'owed_empty_buckets', width: 100, align: 'center' as const },
-  { title: '存水量', dataIndex: 'storage_amount', key: 'storage_amount', width: 100, align: 'center' as const },
-  { title: '备注', dataIndex: 'remark', key: 'remark', ellipsis: true },
-];
-
 const emptyBucketDeposit = computed(() => {
   const owed = customer.value?.owed_empty_bucket ?? 0;
   return Number((owed * depositPerBucket.value).toFixed(2));
+});
+
+const deliveryGridOptions: VxeTableGridOptions<any> = {
+  editConfig: {
+    trigger: 'click',
+    mode: 'cell',
+    showStatus: true,
+    activeMethod: (params: any) => {
+      console.log('edit activeMethod', params.row?.id, params.column?.field);
+      return !String(params.row?.id).startsWith('__empty__');
+    },
+  },
+  columns: [
+    {
+      field: 'date',
+      title: '日期',
+      width: 120,
+      editRender: { name: 'input' },
+    },
+    {
+      field: 'water_delivered',
+      title: '送水量',
+      width: 100,
+      editRender: { name: 'input' },
+    },
+    {
+      field: 'buckets_returned',
+      title: '回桶数',
+      width: 100,
+      editRender: { name: 'input' },
+    },
+    {
+      field: 'owed_empty_buckets',
+      title: '欠空桶',
+      width: 100,
+      editRender: { name: 'input' },
+    },
+    {
+      field: 'storage_amount',
+      title: '存水量',
+      width: 100,
+      editRender: { name: 'input' },
+    },
+    {
+      field: 'remark',
+      title: '备注',
+      minWidth: 200,
+      editRender: { name: 'input' },
+    },
+  ],
+  pagerConfig: {},
+  showOverflow: true,
+  proxyConfig: {
+    ajax: {
+      query: async () => {
+        return {
+          items: displayDeliveryRecords.value,
+          total: displayDeliveryRecords.value.length,
+        };
+      },
+    },
+  },
+};
+
+const [DeliveryGrid, deliveryGridApi] = useVbenVxeGrid({
+  gridOptions: deliveryGridOptions,
+});
+
+const displayDeliveryRecords = computed(() => {
+  const data = deliveryRecords.value.map((r) => ({ ...r }));
+  while (data.length < 10) {
+    data.push({
+      id: `__empty__${data.length}`,
+      customer: '',
+      date: '',
+      water_delivered: '',
+      buckets_returned: '',
+      owed_empty_buckets: '',
+      storage_amount: '',
+      remark: '',
+    } as any);
+  }
+  return data;
 });
 
 async function loadDeliveryRecords() {
@@ -43,10 +120,29 @@ async function loadDeliveryRecords() {
   try {
     const data = await getDeliveryRecordListApi(customer.value.id);
     deliveryRecords.value = data;
+    await deliveryGridApi.reload();
   } catch (error) {
     console.error('加载送水记录失败:', error);
   } finally {
     deliveryLoading.value = false;
+  }
+}
+
+async function handleEditClosed({ row }: any) {
+  if (String(row.id).startsWith('__empty__')) return;
+  if (!row.id) return;
+
+  try {
+    await updateDeliveryRecordApi(row.id, {
+      date: row.date,
+      water_delivered: row.water_delivered,
+      buckets_returned: row.buckets_returned,
+      owed_empty_buckets: row.owed_empty_buckets,
+      storage_amount: row.storage_amount,
+      remark: row.remark,
+    });
+  } catch (error) {
+    console.error('更新送水记录失败:', error);
   }
 }
 
@@ -164,13 +260,7 @@ function getCustomerTypeLabel(type?: string) {
         :loading="deliveryLoading"
         :body-style="{ padding: '12px' }"
       >
-        <Table
-          :columns="deliveryColumns"
-          :data-source="deliveryRecords"
-          :pagination="false"
-          size="small"
-          :locale="{ emptyText: '暂无送水记录' }"
-        />
+        <DeliveryGrid class="w-full" @edit-closed="handleEditClosed" />
       </Card>
     </div>
   </Modal>
