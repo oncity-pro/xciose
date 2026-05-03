@@ -32,6 +32,12 @@ const emptyBucketDeposit = computed(() => {
 });
 
 const deliveryGridOptions: VxeTableGridOptions<any> = {
+  rowConfig: {
+    height: 32,
+  },
+  headerRowStyle: {
+    height: '32px',
+  },
   editConfig: {
     trigger: 'click',
     mode: 'cell',
@@ -99,7 +105,7 @@ const [DeliveryGrid, deliveryGridApi] = useVbenVxeGrid({
 
 const displayDeliveryRecords = computed(() => {
   const data = deliveryRecords.value.map((r) => ({ ...r }));
-  while (data.length < 10) {
+  while (data.length < 9) {
     data.push({
       id: `__empty__${data.length}`,
       customer: '',
@@ -201,13 +207,16 @@ function getCustomerTypeLabel(type?: string) {
 </script>
 
 <template>
-  <Modal :footer="false" class="w-[1080px]">
+  <Modal :footer="false" class="w-[1080px] detail-modal-no-scroll">
+    <div v-if="customer" class="mb-2 text-center font-semibold text-base">
+      客户信息
+    </div>
     <Descriptions
       v-if="customer"
       :column="3"
       bordered
-      :label-style="{ width: '80px', whiteSpace: 'nowrap' }"
-      :content-style="{ whiteSpace: 'nowrap' }"
+      :label-style="{ width: '80px', whiteSpace: 'nowrap', padding: '4px 8px' }"
+      :content-style="{ whiteSpace: 'nowrap', padding: '4px 8px' }"
     >
       <DescriptionsItem label="客户编号">
         {{ /^\d+$/.test(customer.id) ? String(Number(customer.id)) : customer.id }}
@@ -253,15 +262,24 @@ function getCustomerTypeLabel(type?: string) {
     </Descriptions>
 
     <!-- 送水记录 -->
-    <div class="mt-5">
+    <div class="mt-3">
       <Card
         v-if="customer"
         title="送水记录"
         :loading="deliveryLoading"
-        :body-style="{ padding: '12px' }"
+        :head-style="{ padding: '6px 12px', minHeight: 'auto', textAlign: 'center' }"
+        :body-style="{ padding: '8px' }"
       >
         <DeliveryGrid class="w-full" @edit-closed="handleEditClosed" />
       </Card>
     </div>
   </Modal>
 </template>
+
+<style>
+.detail-modal-no-scroll .ant-modal-body {
+  max-height: none !important;
+  overflow: visible !important;
+  padding-bottom: 16px;
+}
+</style>
