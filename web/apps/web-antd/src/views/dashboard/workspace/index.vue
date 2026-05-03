@@ -5,7 +5,7 @@ import type {
   WorkbenchTrendItem,
 } from '@vben/common-ui';
 
-import { computed, h, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 
 import { useDebounceFn } from '@vueuse/core';
@@ -21,9 +21,11 @@ import { preferences } from '@vben/preferences';
 import { useUserStore } from '@vben/stores';
 import { openWindow } from '@vben/utils';
 
-import { Button, Card, Input, Table } from 'ant-design-vue';
+import { Button, Card, Input } from 'ant-design-vue';
 import { Plus, Search } from 'lucide-vue-next';
 
+import { useVbenVxeGrid } from '#/adapter/vxe-table';
+import type { VxeTableGridOptions } from '#/adapter/vxe-table';
 import { getAllCustomersApi, type Customer } from '#/api/customer';
 
 import AnalyticsVisitsSource from '../analytics/analytics-visits-source.vue';
@@ -236,6 +238,12 @@ function handleSearchBlur() {
   }, 200);
 }
 
+function handleEnter() {
+  if (showSearchResults.value && searchResults.value.length > 0) {
+    addCustomer(searchResults.value[0]);
+  }
+}
+
 function addCustomer(customer: Customer) {
   selectedCustomers.value.push(customer);
   searchKeyword.value = '';
@@ -247,67 +255,72 @@ function removeCustomer(id: string) {
   selectedCustomers.value = selectedCustomers.value.filter((c) => c.id !== id);
 }
 
-const customerColumns = [
-  {
-    title: '客户编号',
-    dataIndex: 'id',
-    key: 'id',
-    customRender: ({ text }: { text: string }) =>
-      text && !text.startsWith('__empty__') && /^\d+$/.test(text)
-        ? String(Number(text))
-        : '\u00A0',
+const gridOptions: VxeTableGridOptions<Customer> = {
+  stripe: true,
+  align: 'center',
+  columns: [
+    {
+      field: 'id',
+      title: '客户编号',
+      width: 100,
+      formatter: ({ cellValue }: { cellValue: string }) => {
+        if (!cellValue || cellValue.startsWith('__empty__')) {
+          return '';
+        }
+        if (/^\d+$/.test(cellValue)) {
+          return String(Number(cellValue));
+        }
+        return cellValue;
+      },
+    },
+    { field: 'name', title: '姓名地址', minWidth: 200 },
+    { field: 'brand_name', title: '品牌', width: 120 },
+    {
+      field: 'storage_amount',
+      title: '存水量',
+      width: 100,
+      formatter: ({ cellValue }: { cellValue: number | string }) => {
+        if (cellValue !== undefined && cellValue !== null && cellValue !== '') {
+          return `${cellValue}桶`;
+        }
+        return '';
+      },
+    },
+    {
+      title: '操作',
+      width: 100,
+      slots: { default: 'action' },
+    },
+  ],
+  pagerConfig: { enabled: false },
+  height: 457,
+  rowConfig: {
+    height: 40,
   },
-  {
-    title: '姓名地址',
-    dataIndex: 'name',
-    key: 'name',
-    customRender: ({ text }: { text: string }) => text || '\u00A0',
-  },
-  {
-    title: '品牌',
-    dataIndex: 'brand_name',
-    key: 'brand_name',
-    customRender: ({ text }: { text: string }) => text || '\u00A0',
-  },
-  {
-    title: '存水量',
-    dataIndex: 'storage_amount',
-    key: 'storage_amount',
-    customRender: ({ text }: { text: number | string }) =>
-      text !== undefined && text !== null && text !== '' ? `${text}桶` : '\u00A0',
-  },
-  {
-    title: '操作',
-    key: 'action',
-    customRender: ({ record }: { record: Customer & { __empty?: boolean } }) =>
-      record.__empty
-        ? ''
-        : h(
-            Button,
-            {
-              danger: true,
-              onClick: () => removeCustomer(record.id),
-              size: 'small',
-              type: 'link',
-            },
-            '移除',
-          ),
-  },
-];
+};
+
+const [Grid, gridApi] = useVbenVxeGrid({ gridOptions });
 
 const tableData = computed(() => {
-  const data = selectedCustomers.value.map((c) => ({ ...c, __empty: false }));
+  const data = selectedCustomers.value.map((c) => ({ ...c }));
   while (data.length < 10) {
     data.push({
       id: `__empty__${data.length}`,
       name: '',
       brand_name: '',
       storage_amount: '',
-      __empty: true,
     } as any);
   }
   return data;
 });
+
+watch(
+  tableData,
+  (data) => {
+    gridApi.setGridOptions({ data });
+  },
+  { deep: true, immediate: true },
+);
 
 function navTo(nav: WorkbenchProjectItem | WorkbenchQuickNavItem) {
   if (nav.url?.startsWith('http')) {
@@ -338,38 +351,40 @@ function navTo(nav: WorkbenchProjectItem | WorkbenchQuickNavItem) {
     <div class="mt-5 flex flex-col lg:flex-row">
       <div class="mr-4 w-full lg:w-3/5">
         <!-- 今日送水客户名单 -->
-        <Card class="mt-5" title="今日送水客户名单">
-          <div class="px-5 pt-4">
-            <div class="relative w-full max-w-xs">
+        <Card class="mt-5" title="今日送水客户名单" :body-style="{ padding: 0 }">
+          <div class="px-4 pt-3">
+            <div class="relative w-full">
               <Input
                 v-model:value="searchKeyword"
+                allow-clear
                 placeholder="搜索客户编号或姓名"
-                size="small"
+                style="width: 240px"
                 @blur="handleSearchBlur"
                 @focus="handleSearchFocus"
+                @keydown.enter="handleEnter"
               >
-                <template #suffix>
+                <template #prefix>
                   <Search class="size-4 text-gray-400" />
                 </template>
               </Input>
               <div
                 v-if="(searchResults.length > 0 || searchLoading) && showSearchResults"
-                class="absolute z-50 mt-1 w-full rounded border bg-white shadow-lg"
+                class="absolute z-50 mt-1 w-[240px] rounded border bg-white shadow-lg dark:border-gray-700 dark:bg-[#1e1e1e]"
               >
-                <div v-if="searchLoading" class="px-3 py-2 text-sm text-gray-400">
+                <div v-if="searchLoading" class="px-3 py-2 text-sm text-gray-400 dark:text-gray-500">
                   搜索中...
                 </div>
                 <div
                   v-for="customer in searchResults"
                   v-else
                   :key="customer.id"
-                  class="flex items-center justify-between gap-2 px-3 py-2 hover:bg-gray-50"
+                  class="flex items-center justify-between gap-2 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800"
                 >
                   <div class="flex flex-1 items-center gap-3 text-sm">
                     <span class="w-10 shrink-0 font-medium">
                       {{ /^\d+$/.test(customer.id) ? String(Number(customer.id)) : customer.id }}
                     </span>
-                    <span class="flex-1 truncate text-gray-700" :title="customer.name">
+                    <span class="flex-1 truncate text-gray-700 dark:text-gray-200" :title="customer.name">
                       {{ customer.name }}
                     </span>
                   </div>
@@ -377,20 +392,26 @@ function navTo(nav: WorkbenchProjectItem | WorkbenchQuickNavItem) {
                     <Plus class="size-4" />
                   </Button>
                 </div>
-                <div v-if="!searchLoading && searchResults.length === 0 && searchKeyword.trim()" class="px-3 py-2 text-sm text-gray-400">
+                <div v-if="!searchLoading && searchResults.length === 0 && searchKeyword.trim()" class="px-3 py-2 text-sm text-gray-400 dark:text-gray-500">
                   未找到匹配客户
                 </div>
               </div>
             </div>
           </div>
-          <div class="p-5 pt-2">
-            <Table
-              :columns="customerColumns"
-              :data-source="tableData"
-              :pagination="false"
-              row-key="id"
-              size="small"
-            />
+          <div class="pt-2">
+            <Grid class="w-full">
+              <template #action="{ row }">
+                <Button
+                  v-if="!row.id?.startsWith('__empty__')"
+                  danger
+                  size="small"
+                  type="link"
+                  @click="removeCustomer(row.id)"
+                >
+                  移除
+                </Button>
+              </template>
+            </Grid>
           </div>
         </Card>
         <WorkbenchTrends :items="trendItems" class="mt-5" title="最新动态" />
@@ -410,3 +431,5 @@ function navTo(nav: WorkbenchProjectItem | WorkbenchQuickNavItem) {
     </div>
   </div>
 </template>
+
+
