@@ -428,7 +428,7 @@ function getCustomerTypeLabel(type?: string) {
                   删除
                 </Button>
               </template>
-              <template v-else-if="$rowIndex === deliveryRecords.value.length">
+              <template v-else-if="$rowIndex === deliveryRecords.length">
                 <Button
                   v-if="editableRowIds.has(row.id)"
                   type="link"

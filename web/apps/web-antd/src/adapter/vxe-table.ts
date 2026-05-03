@@ -64,37 +64,6 @@ setupVbenVxeTable({
       },
     });
 
-    // 注册 input 编辑渲染器，确保单元格编辑功能可用
-    vxeUI.renderer.add('input', {
-      renderTableEdit(renderOpts, params) {
-        const { row, column } = params;
-        return h('input', {
-          class: 'vxe-default-input',
-          style: { width: '100%' },
-          value: row[column.field],
-          onInput(e: Event) {
-            row[column.field] = (e.target as HTMLInputElement).value;
-          },
-        });
-      },
-    });
-
-    // 注册 date 编辑渲染器，使用原生 date 输入框
-    vxeUI.renderer.add('date', {
-      renderTableEdit(renderOpts, params) {
-        const { row, column } = params;
-        return h('input', {
-          type: 'date',
-          class: 'vxe-default-input',
-          style: { width: '100%' },
-          value: row[column.field],
-          onInput(e: Event) {
-            row[column.field] = (e.target as HTMLInputElement).value;
-          },
-        });
-      },
-    });
-
     // 这里可以自行扩展 vxe-table 的全局配置，比如自定义格式化
     // vxeUI.formats.add
   },
