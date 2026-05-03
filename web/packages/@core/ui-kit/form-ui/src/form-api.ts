@@ -299,6 +299,11 @@ export class FormApi {
     }
   }
 
+  async setFieldError(field: string, error: string | string[] | undefined) {
+    const form = await this.getForm();
+    form.setFieldError(field, error);
+  }
+
   async setFieldValue(field: string, value: any, shouldValidate?: boolean) {
     const form = await this.getForm();
     form.setFieldValue(field, value, shouldValidate);
