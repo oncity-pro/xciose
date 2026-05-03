@@ -1,11 +1,11 @@
 <script lang="ts" setup>
 import type { Customer } from '#/api/customer';
 
-import { computed, ref, watch } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 
 import { useVbenModal } from '@vben/common-ui';
 
-import { Card, Descriptions, DescriptionsItem, Tag } from 'ant-design-vue';
+import { Button, Card, Descriptions, DescriptionsItem, Tag } from 'ant-design-vue';
 
 import { getBucketDepositConfigApi } from '#/api/settings';
 import { getDeliveryRecordListApi, updateDeliveryRecordApi } from '#/api/delivery-record';
@@ -21,6 +21,9 @@ const props = defineProps<{
 
 const customer = computed(() => props.customerData);
 const depositPerBucket = ref<number>(30);
+
+// 记录已点击"新增"、允许编辑的行ID
+const editableRowIds = ref<Set<string | number>>(new Set());
 
 // 送水记录
 const deliveryRecords = ref<DeliveryRecord[]>([]);
@@ -43,12 +46,14 @@ const deliveryGridOptions: VxeTableGridOptions<any> = {
     trigger: 'click',
     mode: 'cell',
     showStatus: true,
-    beforeEditMethod: () => true,
+    beforeEditMethod: ({ row }: any) => {
+      return editableRowIds.value.has(row.id);
+    },
   },
   columns: [
     {
       field: 'date',
-      title: '日期',
+      title: '送水日期',
       width: 120,
       editRender: { name: 'date' },
     },
@@ -82,6 +87,13 @@ const deliveryGridOptions: VxeTableGridOptions<any> = {
       minWidth: 200,
       editRender: { name: 'input' },
     },
+    {
+      field: 'action',
+      title: '操作',
+      width: 80,
+      fixed: 'right',
+      slots: { default: 'action' },
+    },
   ],
   pagerConfig: {},
   showOverflow: true,
@@ -111,6 +123,7 @@ const displayDeliveryRecords = computed(() => {
 
 async function loadDeliveryRecords() {
   if (!customer.value?.id) return;
+  editableRowIds.value.clear();
   deliveryLoading.value = true;
   try {
     const data = await getDeliveryRecordListApi(customer.value.id);
@@ -125,7 +138,39 @@ async function loadDeliveryRecords() {
   }
 }
 
-async function handleEditClosed({ row }: any) {
+async function handleEditClosed({ row, column }: any) {
+  const field = column?.field || column?.property;
+  console.log('edit-closed triggered', { field, rowId: row?.id, row, column });
+
+  // 先把当前编辑行的数据同步回源数据，防止后续刷新覆盖用户输入
+  const record = deliveryRecords.value.find((r) => r.id === row.id);
+  if (record) {
+    record.date = row.date;
+    record.water_delivered = row.water_delivered;
+    record.buckets_returned = row.buckets_returned;
+    record.owed_empty_buckets = row.owed_empty_buckets;
+    record.storage_amount = row.storage_amount;
+    record.remark = row.remark;
+  }
+
+  // 如果编辑的是送水量列，自动根据客户总存水量扣减
+  if (field === 'water_delivered') {
+    const delivered = Number(row.water_delivered) || 0;
+    const totalStorage = customer.value?.storage_amount ?? 0;
+    const newStorage = totalStorage - delivered;
+    row.storage_amount = newStorage;
+    if (record) {
+      record.storage_amount = newStorage;
+    }
+    console.log('自动计算存水量:', { delivered, totalStorage, result: newStorage });
+  }
+
+  // 空行不刷新表格（避免覆盖用户输入），真实数据行刷新以确保显示正确
+  if (!String(row.id).startsWith('__empty__')) {
+    deliveryGridApi.setGridOptions({ data: displayDeliveryRecords.value });
+  }
+
+  // 空行不保存到后端
   if (String(row.id).startsWith('__empty__')) return;
   if (!row.id) return;
 
@@ -164,6 +209,37 @@ const [Modal, modalApi] = useVbenModal({
     }
   },
 });
+
+function handleAddRow(row: any) {
+  editableRowIds.value.add(row.id);
+  // 尝试自动进入第一列的编辑状态
+  nextTick(() => {
+    const grid = deliveryGridApi.grid;
+    if (grid) {
+      const table = (grid as any).$table || grid;
+      table.setEditCell?.(row, 'date');
+    }
+  });
+}
+
+async function handleSaveRow(row: any) {
+  if (String(row.id).startsWith('__empty__')) return;
+  if (!row.id) return;
+
+  try {
+    await updateDeliveryRecordApi(row.id, {
+      date: row.date,
+      water_delivered: row.water_delivered,
+      buckets_returned: row.buckets_returned,
+      owed_empty_buckets: row.owed_empty_buckets,
+      storage_amount: row.storage_amount,
+      remark: row.remark,
+    });
+    editableRowIds.value.delete(row.id);
+  } catch (error) {
+    console.error('保存送水记录失败:', error);
+  }
+}
 
 function getCustomerTypeColor(type?: string) {
   switch (type) {
@@ -268,7 +344,26 @@ function getCustomerTypeLabel(type?: string) {
         :head-style="{ padding: '6px 12px', minHeight: 'auto', textAlign: 'center' }"
         :body-style="{ padding: '8px' }"
       >
-        <DeliveryGrid class="w-full" />
+        <DeliveryGrid class="w-full">
+          <template #action="{ row }">
+            <Button
+              v-if="editableRowIds.has(row.id)"
+              type="link"
+              size="small"
+              @click="handleSaveRow(row)"
+            >
+              保存
+            </Button>
+            <Button
+              v-else
+              type="link"
+              size="small"
+              @click="handleAddRow(row)"
+            >
+              新增
+            </Button>
+          </template>
+        </DeliveryGrid>
       </Card>
     </div>
   </Modal>
