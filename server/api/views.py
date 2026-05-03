@@ -1,4 +1,5 @@
 from django.shortcuts import render
+from django.db import IntegrityError
 from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -340,8 +341,23 @@ class CustomerListCreateView(generics.ListCreateAPIView):
         if not serializer.is_valid():
             print(f"数据验证失败: {serializer.errors}")
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-            
-        self.perform_create(serializer)
+        
+        # 双重检查：防止并发导致重复编号
+        customer_id = serializer.validated_data.get('id')
+        if customer_id and Customer.objects.filter(id=customer_id).exists():
+            return Response(
+                {'id': ['客户编号已存在，请重新输入']},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            self.perform_create(serializer)
+        except IntegrityError:
+            return Response(
+                {'id': ['客户编号已存在，请重新输入']},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
         print(f"客户创建成功: {serializer.data}")
         return Response({
             'code': 0,
@@ -420,6 +436,56 @@ class CustomerStatsView(APIView):
         })
 
 
+class NextCustomerIdView(APIView):
+    """
+    获取下一个可用客户编号
+    GET /api/v1/customers/next-id
+    """
+    def get(self, request):
+        from .models import generate_customer_id
+        next_id = generate_customer_id()
+        return Response({
+            'code': 0,
+            'message': 'success',
+            'data': {'nextId': next_id}
+        })
+
+
+class CheckCustomerIdView(APIView):
+    """
+    检查客户编号是否已存在
+    GET /api/v1/customers/check-id?id=xxx
+    """
+    def get(self, request):
+        customer_id = request.query_params.get('id', '').strip()
+        if not customer_id:
+            return Response({
+                'code': 0,
+                'message': 'success',
+                'data': {'exists': False}
+            })
+
+        # 精确匹配
+        exists = Customer.objects.filter(id=customer_id).exists()
+
+        # 纯数字编号检查数值等价（如 1 与 0001 视为重复）
+        if not exists and customer_id.isdigit():
+            from django.db import connection
+            cast_type = 'INTEGER' if connection.vendor == 'sqlite' else 'UNSIGNED'
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    f"SELECT 1 FROM api_customer WHERE CAST(id AS {cast_type}) = %s LIMIT 1",
+                    [int(customer_id)]
+                )
+                exists = cursor.fetchone() is not None
+
+        return Response({
+            'code': 0,
+            'message': 'success',
+            'data': {'exists': exists}
+        })
+
+
 class CustomerDetailView(generics.RetrieveUpdateDestroyAPIView):
     """
     客户详情、更新和删除视图
@@ -442,8 +508,9 @@ class CustomerDetailView(generics.RetrieveUpdateDestroyAPIView):
     def update(self, request, *args, **kwargs):
         """
         重写 update 方法，返回 Vben Admin 期望的格式
+        默认启用 partial=True，支持前端只传部分字段进行更新
         """
-        partial = kwargs.pop('partial', False)
+        partial = kwargs.pop('partial', True)
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         

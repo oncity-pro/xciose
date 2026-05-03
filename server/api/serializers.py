@@ -58,14 +58,29 @@ class CustomerSerializer(serializers.ModelSerializer):
         return f'押{owed}桶共{total}元'
 
     def validate_id(self, value):
-        """验证客户编号唯一性"""
+        """验证客户编号唯一性（支持纯数字编号的数值等价检查，如 1 与 0001 视为重复）"""
         if not value:
             return value
         if self.instance is not None and value == self.instance.id:
             # 更新模式且编号未变，无需校验
             return value
+
+        # 1. 精确匹配检查
         if Customer.objects.filter(id=value).exists():
             raise serializers.ValidationError("客户编号已存在，请重新输入")
+
+        # 2. 纯数字编号检查数值等价（如 1 与 0001 视为重复）
+        if value.isdigit():
+            from django.db import connection
+            cast_type = 'INTEGER' if connection.vendor == 'sqlite' else 'UNSIGNED'
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    f"SELECT 1 FROM api_customer WHERE CAST(id AS {cast_type}) = %s LIMIT 1",
+                    [int(value)]
+                )
+                if cursor.fetchone():
+                    raise serializers.ValidationError("客户编号已存在，请重新输入")
+
         return value
 
     def to_representation(self, instance):

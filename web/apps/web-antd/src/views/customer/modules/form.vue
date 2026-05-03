@@ -10,18 +10,21 @@ import type { WaterBrand } from '#/api/water-brand';
 import { computed, ref } from 'vue';
 
 import { useVbenModal } from '@vben/common-ui';
+import { useDebounceFn } from '@vueuse/core';
 
 import { message } from 'ant-design-vue';
 
 import { useVbenForm } from '#/adapter/form';
-import { 
-  createCustomerApi, 
-  CUSTOMER_TYPE_OPTIONS, 
+import {
+  checkCustomerIdApi,
+  createCustomerApi,
+  CUSTOMER_TYPE_OPTIONS,
+  getNextCustomerIdApi,
   updateCustomerApi,
 } from '#/api/customer';
 import { getBucketDepositConfigApi } from '#/api/settings';
-import { 
-  getWaterBrandListApi, 
+import {
+  getWaterBrandListApi,
 } from '#/api/water-brand';
 import { Pencil, UserPlus } from 'lucide-vue-next';
 
@@ -57,6 +60,27 @@ const isEdit = computed(() => {
   return props.customerData && Object.keys(props.customerData).length > 0;
 });
 
+// 编号检查中状态
+const idChecking = ref(false);
+
+// 防抖检查客户编号是否已存在
+const debouncedCheckId = useDebounceFn(async (id: string) => {
+  if (!id || isEdit.value) return;
+  idChecking.value = true;
+  try {
+    const exists = await checkCustomerIdApi(id);
+    if (exists) {
+      formApi.setFieldError('id', '客户编号已存在，请重新输入');
+    } else {
+      formApi.setFieldError('id', undefined);
+    }
+  } catch (error) {
+    console.error('检查客户编号失败:', error);
+  } finally {
+    idChecking.value = false;
+  }
+}, 300);
+
 // 品牌列表 - 现在由ApiSelect组件内部处理
 // const brandOptions = ref<Array<{ label: string; value: number }>>([]);
 // const allBrands = ref<WaterBrand[]>([]); // 存储完整品牌信息
@@ -88,7 +112,22 @@ const [Form, formApi] = useVbenForm({
           const val = e?.target?.value || '';
           const num = val.replace(/\D/g, '');
           if (num) {
-            formApi.setValues({ id: num.padStart(4, '0') });
+            const cleanId = String(Number(num));
+            formApi.setValues({ id: cleanId });
+            debouncedCheckId(cleanId);
+          }
+        },
+        onFocus: (e: any) => {
+          const val = e?.target?.value || '';
+          if (val && !isEdit.value) {
+            debouncedCheckId(val);
+          }
+        },
+        onInput: (e: any) => {
+          const val = e?.target?.value || '';
+          const num = val.replace(/\D/g, '');
+          if (num) {
+            debouncedCheckId(String(Number(num)));
           }
         },
       },
@@ -441,13 +480,23 @@ const [Modal, modalApi] = useVbenModal({
         // 新增模式：重置表单并设置默认值
         console.warn('进入新增模式，重置表单');
         await formApi.resetForm();
-        
+
+        // 自动获取并填入下一个可用客户编号
+        try {
+          const nextId = await getNextCustomerIdApi();
+          await formApi.setValues({ id: nextId });
+        } catch (error) {
+          console.error('获取下一个客户编号失败:', error);
+        }
+
         // 设置默认值
         const today = new Date().toISOString().split('T')[0]; // 获取今天的日期，格式为 YYYY-MM-DD
-        await formApi.setValues({ 
+        await formApi.setValues({
           open_date: today, // 设置开户日期为今天
-          empty_bucket_deposit: 0,
-          
+          last_delivery_date: today, // 设置送水日期为今天
+          owed_empty_bucket: 2, // 押桶数默认为2
+          empty_bucket_deposit: Number((2 * depositPerBucket.value).toFixed(2)),
+
           // 设置怡宝为默认品牌
           brand: defaultBrandId,
         });

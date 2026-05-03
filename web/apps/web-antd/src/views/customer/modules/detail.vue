@@ -114,7 +114,7 @@ function getCustomerTypeLabel(type?: string) {
       :content-style="{ whiteSpace: 'nowrap' }"
     >
       <DescriptionsItem label="客户编号">
-        {{ customer.id }}
+        {{ /^\d+$/.test(customer.id) ? String(Number(customer.id)) : customer.id }}
       </DescriptionsItem>
       <DescriptionsItem label="姓名地址">
         {{ customer.name }}

@@ -214,3 +214,22 @@ export async function patchCustomerApi(
 export async function deleteCustomerApi(id: string): Promise<void> {
   return requestClient.delete(`/v1/customers/${id}`);
 }
+
+/**
+ * 获取下一个可用客户编号
+ */
+export async function getNextCustomerIdApi(): Promise<string> {
+  const res = await requestClient.get<{ nextId: string }>('/v1/customers/next-id');
+  return res.nextId;
+}
+
+/**
+ * 检查客户编号是否已存在
+ * @param id 客户编号
+ */
+export async function checkCustomerIdApi(id: string): Promise<boolean> {
+  const res = await requestClient.get<{ exists: boolean }>('/v1/customers/check-id', {
+    params: { id },
+  });
+  return res.exists;
+}

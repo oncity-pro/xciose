@@ -76,7 +76,7 @@ class WaterBrand(models.Model):
 
 
 def generate_customer_id():
-    """生成客户编号：格式为4位数字，从0001开始，但要避开现有的CUS ID数值"""
+    """生成客户编号：从1开始自增，避开现有的CUS ID数值，确保唯一"""
     from django.apps import apps
     from django.db import connection
     
@@ -106,7 +106,15 @@ def generate_customer_id():
     # 新的ID应该是两者中的最大值加1
     new_number = max(max_numeric_id, max_cus_numeric_part) + 1
     
-    return f'{new_number:04d}'
+    # 循环检查并跳过已存在的编号，防止并发导致重复
+    for _ in range(1000):
+        new_id = str(new_number)
+        if not Customer.objects.filter(id=new_id).exists():
+            return new_id
+        new_number += 1
+    
+    # 兜底：如果循环1000次仍未找到可用编号，使用UUID（理论上不会发生）
+    return str(uuid.uuid4())[:8].upper()
 
 
 class Customer(models.Model):
