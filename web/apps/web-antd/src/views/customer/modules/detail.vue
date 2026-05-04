@@ -30,6 +30,9 @@ const depositPerBucket = ref<number>(30);
 // 记录已点击"新增"、允许编辑的行ID
 const editableRowIds = ref<Set<string | number>>(new Set());
 
+// 控制是否自动填充第一行空行的默认值（只在初始加载时填充，保存后不再填充）
+const shouldFillEmptyRowDefaults = ref(true);
+
 // 送水记录
 const deliveryRecords = ref<DeliveryRecord[]>([]);
 const deliveryLoading = ref(false);
@@ -46,13 +49,36 @@ const deliveryGridOptions: VxeTableGridOptions<any> = {
   headerRowStyle: {
     height: '32px',
   },
+  stripe: true,
   keepSource: true,
   editConfig: {
     trigger: 'click',
     mode: 'cell',
     showStatus: true,
-    beforeEditMethod: ({ row }: any) => {
-      return editableRowIds.value.has(row.id);
+    beforeEditMethod: ({ row, column, $table }: any) => {
+      if (editableRowIds.value.has(row.id)) {
+        return true;
+      }
+      // 空行点击送水日期单元格时，只有上一行有数据才允许进入编辑状态
+      if (String(row.id).startsWith('__empty__') && column.field === 'date') {
+        const data = $table.getData() || [];
+        const rowIndex = data.findIndex((r: any) => r.id === row.id);
+        const prevRow = data[rowIndex - 1];
+        const nextRow = data[rowIndex + 1];
+        if (prevRow && prevRow.date) {
+          editableRowIds.value.add(row.id);
+          // 只有上下行并非同时有数据时，才默认填充当天日期（使用本地时间避免UTC偏移）
+          if (!row.date && !(nextRow && nextRow.date)) {
+            const today = new Date();
+            const y = today.getFullYear();
+            const m = String(today.getMonth() + 1).padStart(2, '0');
+            const d = String(today.getDate()).padStart(2, '0');
+            row.date = `${y}-${m}-${d}`;
+          }
+          return true;
+        }
+      }
+      return false;
     },
   },
   columns: [
@@ -60,7 +86,7 @@ const deliveryGridOptions: VxeTableGridOptions<any> = {
       field: 'date',
       title: '送水日期',
       width: 120,
-      editRender: { name: 'date' },
+      editRender: { name: 'input', attrs: { type: 'date' } },
     },
     {
       field: 'water_delivered',
@@ -79,12 +105,14 @@ const deliveryGridOptions: VxeTableGridOptions<any> = {
       title: '欠空桶',
       width: 100,
       editRender: { name: 'input' },
+      formatter: ({ cellValue, row }: any) => (row.date ? cellValue : ''),
     },
     {
       field: 'storage_amount',
       title: '存水量',
       width: 100,
       editRender: { name: 'input' },
+      formatter: ({ cellValue, row }: any) => (row.date ? cellValue : ''),
     },
     {
       field: 'remark',
@@ -112,16 +140,50 @@ const [DeliveryGrid, deliveryGridApi] = useVbenVxeGrid({
 const displayDeliveryRecords = computed(() => {
   const data = deliveryRecords.value.map((r) => ({ ...r }));
   while (data.length < 9) {
-    data.push({
-      id: `__empty__${data.length}`,
-      customer: '',
-      date: '',
-      water_delivered: '',
-      buckets_returned: '',
-      owed_empty_buckets: '',
-      storage_amount: '',
-      remark: '',
-    } as any);
+    const idx = data.length;
+    const prevRow = data[idx - 1];
+    if (idx === deliveryRecords.value.length && customer.value && shouldFillEmptyRowDefaults.value) {
+      // 第一个空行：基于客户信息填充默认值（只在初始加载时）
+      const openDate = customer.value.open_date || customer.value.openDate || '';
+      const owedBuckets = customer.value.owed_empty_bucket ?? 0;
+      const storage = customer.value.storage_amount ?? 0;
+      const isVip = customer.value.customer_type === 'vip';
+      data.push({
+        id: `__empty__${idx}`,
+        customer: '',
+        date: openDate,
+        water_delivered: owedBuckets,
+        buckets_returned: 0,
+        owed_empty_buckets: 0,
+        storage_amount: isVip ? storage - owedBuckets : 0,
+        remark: '',
+      } as any);
+    } else if (prevRow) {
+      // 第二个及后续空行：欠空桶基于上一行计算，存水量不参与计算
+      const prevWater = Number(prevRow.water_delivered) || 0;
+      const prevReturned = Number(prevRow.buckets_returned) || 0;
+      data.push({
+        id: `__empty__${idx}`,
+        customer: '',
+        date: '',
+        water_delivered: '',
+        buckets_returned: '',
+        owed_empty_buckets: prevWater - prevReturned,
+        storage_amount: '',
+        remark: '',
+      } as any);
+    } else {
+      data.push({
+        id: `__empty__${idx}`,
+        customer: '',
+        date: '',
+        water_delivered: '',
+        buckets_returned: '',
+        owed_empty_buckets: '',
+        storage_amount: '',
+        remark: '',
+      } as any);
+    }
   }
   return data;
 });
@@ -129,6 +191,7 @@ const displayDeliveryRecords = computed(() => {
 async function loadDeliveryRecords() {
   if (!customer.value?.id) return;
   editableRowIds.value.clear();
+  shouldFillEmptyRowDefaults.value = true;
   deliveryLoading.value = true;
   try {
     const data = await getDeliveryRecordListApi(customer.value.id);
@@ -244,6 +307,8 @@ async function handleSaveRow(row: any) {
       });
       // 添加到源数据头部，表格会自动刷新
       deliveryRecords.value.unshift(newRecord);
+      // 保存后不再自动填充空行默认值
+      shouldFillEmptyRowDefaults.value = false;
       await deliveryGridApi.setGridOptions({
         data: displayDeliveryRecords.value,
       });
@@ -268,9 +333,15 @@ async function handleSaveRow(row: any) {
 }
 
 function handleDeleteRow(row: any) {
-  // 空行直接移除，无需调用后端
+  // 空行清除数据并移除编辑状态，无需调用后端
   if (String(row.id).startsWith('__empty__')) {
     editableRowIds.value.delete(row.id);
+    row.date = '';
+    row.water_delivered = '';
+    row.buckets_returned = '';
+    row.owed_empty_buckets = '';
+    row.storage_amount = '';
+    row.remark = '';
     return;
   }
 
@@ -286,6 +357,12 @@ function handleDeleteRow(row: any) {
         // 从本地数据中移除
         deliveryRecords.value = deliveryRecords.value.filter((r) => r.id !== row.id);
         editableRowIds.value.delete(row.id);
+        // 清理所有空行的编辑状态（避免空行id重新计算后残留）
+        for (const id of [...editableRowIds.value]) {
+          if (String(id).startsWith('__empty__')) {
+            editableRowIds.value.delete(id);
+          }
+        }
         await deliveryGridApi.setGridOptions({
           data: displayDeliveryRecords.value,
         });
@@ -347,45 +424,48 @@ function getCustomerTypeLabel(type?: string) {
       :label-style="{ width: '80px', whiteSpace: 'nowrap', padding: '4px 8px' }"
       :content-style="{ whiteSpace: 'nowrap', padding: '4px 8px' }"
     >
-      <DescriptionsItem label="客户编号">
+      <DescriptionsItem label="客户编号：">
         {{ /^\d+$/.test(customer.id) ? String(Number(customer.id)) : customer.id }}
       </DescriptionsItem>
-      <DescriptionsItem label="姓名地址">
+      <DescriptionsItem label="姓名地址：">
         {{ customer.name }}
       </DescriptionsItem>
-      <DescriptionsItem label="客户类型">
+      <DescriptionsItem label="客户类型：">
         <Tag :color="getCustomerTypeColor(customer.customer_type)">
           {{ getCustomerTypeLabel(customer.customer_type) }}
         </Tag>
       </DescriptionsItem>
-      <DescriptionsItem v-if="customer.customer_type === 'vip'" label="优惠方案">
+      <DescriptionsItem v-if="customer.customer_type === 'vip'" label="优惠方案：">
         {{ customer.vip_scheme ? customer.vip_scheme.replace('_', '送') : '-' }}
       </DescriptionsItem>
-      <DescriptionsItem label="品牌">
+      <DescriptionsItem label="品牌：">
         {{ brandName || customer.brand_name || '-' }}
       </DescriptionsItem>
-      <DescriptionsItem label="联系电话">
+      <DescriptionsItem label="联系电话：">
         {{ customer.phone || '-' }}
       </DescriptionsItem>
-      <DescriptionsItem label="开户日期">
+      <DescriptionsItem label="开户日期：">
         {{ customer.openDate || customer.open_date || '-' }}
       </DescriptionsItem>
-      <DescriptionsItem label="最后送水日期">
+      <DescriptionsItem label="最后送水日期：">
         {{ customer.lastDeliveryDate || customer.last_delivery_date || '-' }}
       </DescriptionsItem>
-      <DescriptionsItem label="存水量">
-        {{ customer.storage_amount ?? '-' }}
+      <DescriptionsItem label="存水量：">
+        {{ customer.storage_amount != null ? `${customer.storage_amount} 桶` : '-' }}
       </DescriptionsItem>
-      <DescriptionsItem label="总用水量">
-        {{ customer.total_water_usage ?? customer.totalWaterUsage ?? '-' }}
+      <DescriptionsItem label="总用水量：">
+        {{ (customer.total_water_usage ?? customer.totalWaterUsage) != null ? `${customer.total_water_usage ?? customer.totalWaterUsage} 桶` : '-' }}
       </DescriptionsItem>
-      <DescriptionsItem label="空桶押金">
-        {{ emptyBucketDeposit }} 元
+      <DescriptionsItem label="押桶数：">
+        {{ customer.owed_empty_bucket != null ? `押${customer.owed_empty_bucket}个桶共${emptyBucketDeposit}元` : '-' }}
       </DescriptionsItem>
-      <DescriptionsItem label="欠空桶">
-        {{ customer.owed_empty_bucket ?? '-' }}
+      <DescriptionsItem label="客户来源：">
+        {{ customer.source === 'wechat' ? '微信' : customer.source === 'internet' ? '互联网' : customer.source === 'phone' ? '电话' : '-' }}
       </DescriptionsItem>
-      <DescriptionsItem label="备注">
+      <DescriptionsItem label="楼层：">
+        {{ customer.floor_type === 'default' ? '默认' : customer.floor_type === 'elevator' ? '电梯' : customer.floor_type === 'stair' ? '步梯' : customer.floor_type === 'residential' ? '住宅' : '-' }}
+      </DescriptionsItem>
+      <DescriptionsItem label="备注：">
         {{ customer.remark || '-' }}
       </DescriptionsItem>
     </Descriptions>
@@ -420,6 +500,7 @@ function getCustomerTypeLabel(type?: string) {
                   编辑
                 </Button>
                 <Button
+                  v-if="$rowIndex !== 0"
                   type="link"
                   danger
                   size="small"
@@ -443,7 +524,34 @@ function getCustomerTypeLabel(type?: string) {
                   size="small"
                   @click="handleAddRow(row)"
                 >
-                  新增
+                  编辑
+                </Button>
+              </template>
+              <template v-else>
+                <Button
+                  v-if="editableRowIds.has(row.id)"
+                  type="link"
+                  size="small"
+                  @click="handleSaveRow(row)"
+                >
+                  保存
+                </Button>
+                <Button
+                  v-if="!editableRowIds.has(row.id) && row.date"
+                  type="link"
+                  size="small"
+                  @click="handleAddRow(row)"
+                >
+                  编辑
+                </Button>
+                <Button
+                  v-if="editableRowIds.has(row.id) || row.date"
+                  type="link"
+                  danger
+                  size="small"
+                  @click="handleDeleteRow(row)"
+                >
+                  删除
                 </Button>
               </template>
             </div>
