@@ -67,6 +67,8 @@ export interface Customer {
 
 export interface CustomerListParams {
   keyword?: string;
+  customer_id?: string;
+  name?: string;
   page?: number;
   pageSize?: number;
 }

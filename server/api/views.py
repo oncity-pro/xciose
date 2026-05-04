@@ -275,18 +275,25 @@ class CustomerListView(generics.ListAPIView):
     
     def get_queryset(self):
         queryset = Customer.objects.all()
-        
+
         # 获取搜索参数
         keyword = self.request.query_params.get('keyword', None)
-        
+        customer_id = self.request.query_params.get('customer_id', None)
+        name = self.request.query_params.get('name', None)
+
         if keyword:
-            # 支持按客户编号或姓名模糊搜索
+            # 支持按客户编号或姓名模糊搜索（兼容旧逻辑）
             from django.db.models import Q
             queryset = queryset.filter(
-                Q(id__icontains=keyword) | 
+                Q(id__icontains=keyword) |
                 Q(name__icontains=keyword)
             )
-        
+        else:
+            if customer_id:
+                queryset = queryset.filter(id__icontains=customer_id)
+            if name:
+                queryset = queryset.filter(name__icontains=name)
+
         return queryset
 
 
@@ -297,21 +304,28 @@ class CustomerListCreateView(generics.ListCreateAPIView):
     queryset = Customer.objects.all()
     serializer_class = CustomerSerializer
     pagination_class = None  # 禁用分页，返回完整列表
-    
+
     def get_queryset(self):
         queryset = Customer.objects.all()
-        
+
         # 获取搜索参数
         keyword = self.request.query_params.get('keyword', None)
-        
+        customer_id = self.request.query_params.get('customer_id', None)
+        name = self.request.query_params.get('name', None)
+
         if keyword:
-            # 支持按客户编号或姓名模糊搜索
+            # 支持按客户编号或姓名模糊搜索（兼容旧逻辑）
             from django.db.models import Q
             queryset = queryset.filter(
-                Q(id__icontains=keyword) | 
+                Q(id__icontains=keyword) |
                 Q(name__icontains=keyword)
             )
-        
+        else:
+            if customer_id:
+                queryset = queryset.filter(id__icontains=customer_id)
+            if name:
+                queryset = queryset.filter(name__icontains=name)
+
         return queryset
     
     def list(self, request, *args, **kwargs):

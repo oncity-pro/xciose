@@ -30,8 +30,10 @@ const brandMap = ref<Map<number, string>>(new Map());
 // 加载状态
 const loading = ref(false);
 
-// 搜索关键词
-const searchKeyword = ref('');
+// 客户编号搜索
+const searchCustomerId = ref('');
+// 姓名地址搜索
+const searchName = ref('');
 
 // 统计数据（从后端全局统计接口获取）
 const statsData = ref<CustomerStats>({
@@ -75,10 +77,22 @@ async function loadStats() {
   }
 }
 
-// 实时搜索
-watch(searchKeyword, () => {
+// 实时搜索（客户编号）
+watch(searchCustomerId, () => {
   gridApi.query();
 });
+
+// 实时搜索（姓名地址）
+watch(searchName, () => {
+  gridApi.query();
+});
+
+// 重置搜索
+function handleResetSearch() {
+  searchCustomerId.value = '';
+  searchName.value = '';
+  gridApi.query();
+}
 
 // 加载品牌数据
 async function loadBrands() {
@@ -296,8 +310,11 @@ const gridOptions: VxeTableGridOptions<Customer> = {
           
           // 调用真实 API 获取数据
           const params: any = {};
-          if (searchKeyword.value) {
-            params.keyword = searchKeyword.value;
+          if (searchCustomerId.value) {
+            params.customer_id = searchCustomerId.value;
+          }
+          if (searchName.value) {
+            params.name = searchName.value;
           }
           
           let data = await getCustomerListApi(params);
@@ -448,16 +465,31 @@ onMounted(() => {
         <div class="min-h-0 flex-1">
           <Grid :loading="loading" class="h-full">
             <template #toolbar-actions>
-              <Input
-                v-model:value="searchKeyword"
-                allow-clear
-                placeholder="输入编号或姓名地址搜索"
-                style="width: 240px"
-              >
-                <template #prefix>
-                  <Search class="size-4 text-gray-400" />
-                </template>
-              </Input>
+              <div class="flex items-center gap-2">
+                <Input
+                  v-model:value="searchCustomerId"
+                  allow-clear
+                  placeholder="搜索客户编号"
+                  style="width: 180px"
+                >
+                  <template #prefix>
+                    <Search class="size-4 text-gray-400" />
+                  </template>
+                </Input>
+                <Input
+                  v-model:value="searchName"
+                  allow-clear
+                  placeholder="搜索姓名地址"
+                  style="width: 180px"
+                >
+                  <template #prefix>
+                    <Search class="size-4 text-gray-400" />
+                  </template>
+                </Input>
+                <Button size="small" @click="handleResetSearch">
+                  重置
+                </Button>
+              </div>
             </template>
             <template #toolbar-tools>
               <Button type="primary" @click="onCreate">

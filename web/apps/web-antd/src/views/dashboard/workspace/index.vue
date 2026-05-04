@@ -194,9 +194,11 @@ const trendItems: WorkbenchTrendItem[] = [
 const router = useRouter();
 
 // ============ 今日送水客户名单 ============
-const searchKeyword = ref('');
+const searchCustomerId = ref('');
+const searchName = ref('');
 const searchResults = ref<Customer[]>([]);
 const showSearchResults = ref(false);
+const activeField = ref<'id' | 'name' | null>(null);
 const selectedCustomers = ref<Customer[]>([]);
 const searchLoading = ref(false);
 const completedCustomers = ref<Customer[]>([]);
@@ -257,17 +259,28 @@ function onViewDetail(row: Customer) {
   detailModalApi.open();
 }
 
-const debouncedSearch = useDebounceFn(async (keyword: string) => {
-  if (!keyword.trim()) {
+const debouncedSearch = useDebounceFn(async () => {
+  const customerId = searchCustomerId.value.trim();
+  const name = searchName.value.trim();
+
+  if (!customerId && !name) {
     searchResults.value = [];
     searchLoading.value = false;
     return;
   }
+
   searchLoading.value = true;
   showSearchResults.value = true;
   try {
-    console.log('开始搜索客户:', keyword.trim());
-    const res = await getAllCustomersApi({ keyword: keyword.trim() });
+    const params: any = {};
+    if (customerId) {
+      params.customer_id = customerId;
+    }
+    if (name) {
+      params.name = name;
+    }
+    console.log('开始搜索客户:', params);
+    const res = await getAllCustomersApi(params);
     console.log('搜索结果:', res);
     const existingIds = new Set(selectedCustomers.value.map((c) => c.id));
     console.log('已有客户ID:', existingIds);
@@ -280,12 +293,20 @@ const debouncedSearch = useDebounceFn(async (keyword: string) => {
   }
 }, 100);
 
-watch(searchKeyword, (val) => {
-  console.log('搜索关键词变化:', val);
-  debouncedSearch(val);
+watch(searchCustomerId, (val) => {
+  console.log('客户编号搜索变化:', val);
+  activeField.value = 'id';
+  debouncedSearch();
 });
 
-function handleSearchFocus() {
+watch(searchName, (val) => {
+  console.log('姓名地址搜索变化:', val);
+  activeField.value = 'name';
+  debouncedSearch();
+});
+
+function handleSearchFocus(field: 'id' | 'name') {
+  activeField.value = field;
   if (searchResults.value.length > 0) {
     showSearchResults.value = true;
   }
@@ -303,12 +324,20 @@ function handleEnter() {
   }
 }
 
+function handleResetSearch() {
+  searchCustomerId.value = '';
+  searchName.value = '';
+  searchResults.value = [];
+  showSearchResults.value = false;
+}
+
 function addCustomer(customer: Customer) {
   if (completedTodayIds.value.has(customer.id)) {
     return;
   }
   selectedCustomers.value.push(customer);
-  searchKeyword.value = '';
+  searchCustomerId.value = '';
+  searchName.value = '';
   searchResults.value = [];
   showSearchResults.value = false;
 }
@@ -423,50 +452,100 @@ function navTo(nav: WorkbenchProjectItem | WorkbenchQuickNavItem) {
         <Card class="mt-5" title="今日送水客户名单" :body-style="{ padding: 0 }">
           <div class="px-4 pt-3">
             <div class="flex items-center justify-between">
-              <div class="relative">
-                <Input
-                  v-model:value="searchKeyword"
-                  allow-clear
-                  placeholder="搜索客户编号或姓名"
-                  style="width: 240px"
-                  @blur="handleSearchBlur"
-                  @focus="handleSearchFocus"
-                  @keydown.enter="handleEnter"
-                >
-                  <template #prefix>
-                    <Search class="size-4 text-gray-400" />
-                  </template>
-                </Input>
-                <div
-                  v-if="(searchResults.length > 0 || searchLoading) && showSearchResults"
-                  class="absolute z-50 mt-1 w-[240px] rounded border bg-white shadow-lg dark:border-gray-700 dark:bg-[#1e1e1e]"
-                >
-                  <div v-if="searchLoading" class="px-3 py-2 text-sm text-gray-400 dark:text-gray-500">
-                    搜索中...
-                  </div>
-                  <div
-                    v-for="customer in searchResults"
-                    v-else
-                    :key="customer.id"
-                    class="flex cursor-pointer items-center justify-between gap-2 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800"
-                    @click="addCustomer(customer)"
+              <div class="flex items-center gap-2">
+                <div class="relative">
+                  <Input
+                    v-model:value="searchCustomerId"
+                    allow-clear
+                    placeholder="搜索客户编号"
+                    style="width: 160px"
+                    @blur="handleSearchBlur"
+                    @focus="() => handleSearchFocus('id')"
+                    @keydown.enter="handleEnter"
                   >
-                    <div class="flex flex-1 items-center gap-3 text-sm">
-                      <span class="w-10 shrink-0 font-medium">
-                        {{ /^\d+$/.test(customer.id) ? String(Number(customer.id)) : customer.id }}
-                      </span>
-                      <span class="flex-1 truncate text-gray-700 dark:text-gray-200" :title="customer.name">
-                        {{ customer.name }}
-                      </span>
+                    <template #prefix>
+                      <Search class="size-4 text-gray-400" />
+                    </template>
+                  </Input>
+                  <div
+                    v-if="activeField === 'id' && (searchResults.length > 0 || searchLoading) && showSearchResults"
+                    class="absolute top-full left-0 z-50 mt-1 min-w-full w-max max-w-[400px] rounded border bg-white shadow-lg dark:border-gray-700 dark:bg-[#1e1e1e]"
+                  >
+                    <div v-if="searchLoading" class="px-3 py-2 text-sm text-gray-400 dark:text-gray-500">
+                      搜索中...
                     </div>
-                    <Button type="link" size="small" @click.stop="addCustomer(customer)">
-                      <Plus class="size-4" />
-                    </Button>
-                  </div>
-                  <div v-if="!searchLoading && searchResults.length === 0 && searchKeyword.trim()" class="px-3 py-2 text-sm text-gray-400 dark:text-gray-500">
-                    未找到匹配客户
+                    <div
+                      v-for="customer in searchResults"
+                      v-else
+                      :key="customer.id"
+                      class="flex cursor-pointer items-center justify-between gap-2 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800"
+                      @click="addCustomer(customer)"
+                    >
+                      <div class="flex items-center gap-3 text-sm whitespace-nowrap">
+                        <span class="w-10 shrink-0 font-medium">
+                          {{ /^\d+$/.test(customer.id) ? String(Number(customer.id)) : customer.id }}
+                        </span>
+                        <span class="text-gray-700 dark:text-gray-200">
+                          {{ customer.name }}
+                        </span>
+                      </div>
+                      <Button type="link" size="small" @click.stop="addCustomer(customer)">
+                        <Plus class="size-4" />
+                      </Button>
+                    </div>
+                    <div v-if="!searchLoading && searchResults.length === 0 && (searchCustomerId.trim() || searchName.trim())" class="px-3 py-2 text-sm text-gray-400 dark:text-gray-500">
+                      未找到匹配客户
+                    </div>
                   </div>
                 </div>
+                <div class="relative">
+                  <Input
+                    v-model:value="searchName"
+                    allow-clear
+                    placeholder="搜索姓名地址"
+                    style="width: 160px"
+                    @blur="handleSearchBlur"
+                    @focus="() => handleSearchFocus('name')"
+                    @keydown.enter="handleEnter"
+                  >
+                    <template #prefix>
+                      <Search class="size-4 text-gray-400" />
+                    </template>
+                  </Input>
+                  <div
+                    v-if="activeField === 'name' && (searchResults.length > 0 || searchLoading) && showSearchResults"
+                    class="absolute top-full left-0 z-50 mt-1 min-w-full w-max max-w-[400px] rounded border bg-white shadow-lg dark:border-gray-700 dark:bg-[#1e1e1e]"
+                  >
+                    <div v-if="searchLoading" class="px-3 py-2 text-sm text-gray-400 dark:text-gray-500">
+                      搜索中...
+                    </div>
+                    <div
+                      v-for="customer in searchResults"
+                      v-else
+                      :key="customer.id"
+                      class="flex cursor-pointer items-center justify-between gap-2 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800"
+                      @click="addCustomer(customer)"
+                    >
+                      <div class="flex items-center gap-3 text-sm whitespace-nowrap">
+                        <span class="w-10 shrink-0 font-medium">
+                          {{ /^\d+$/.test(customer.id) ? String(Number(customer.id)) : customer.id }}
+                        </span>
+                        <span class="text-gray-700 dark:text-gray-200">
+                          {{ customer.name }}
+                        </span>
+                      </div>
+                      <Button type="link" size="small" @click.stop="addCustomer(customer)">
+                        <Plus class="size-4" />
+                      </Button>
+                    </div>
+                    <div v-if="!searchLoading && searchResults.length === 0 && (searchCustomerId.trim() || searchName.trim())" class="px-3 py-2 text-sm text-gray-400 dark:text-gray-500">
+                      未找到匹配客户
+                    </div>
+                  </div>
+                </div>
+                <Button size="small" @click="handleResetSearch">
+                  重置
+                </Button>
               </div>
               <div class="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
                 <span>进行中：{{ inProgressCount }}位</span>
