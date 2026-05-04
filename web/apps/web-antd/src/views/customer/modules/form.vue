@@ -168,6 +168,70 @@ const [Form, formApi] = useVbenForm({
       defaultValue: 'normal',
     },
     {
+      component: 'Select',
+      componentProps: {
+        placeholder: '请选择客户来源',
+        options: [
+          { label: '微信', value: 'wechat' },
+          { label: '互联网', value: 'internet' },
+          { label: '电话', value: 'phone' },
+        ],
+      },
+      fieldName: 'source',
+      label: '客户来源',
+      defaultValue: 'wechat',
+    },
+    {
+      component: 'Select',
+      componentProps: {
+        placeholder: '请选择楼层',
+        options: [
+          { label: '默认', value: 'default' },
+          { label: '电梯', value: 'elevator' },
+          { label: '步梯', value: 'stair' },
+          { label: '住宅', value: 'residential' },
+        ],
+      },
+      fieldName: 'floor_type',
+      label: '楼层',
+      defaultValue: 'default',
+    },
+    {
+      component: 'RadioGroup',
+      componentProps: {
+        options: [
+          { label: '加收桶/2元', value: '2' },
+          { label: '加收桶/3元', value: '3' },
+          { label: '其它', value: 'other' },
+        ],
+      },
+      dependencies: {
+        show(values) {
+          return values.floor_type === 'stair';
+        },
+        triggerFields: ['floor_type'],
+      },
+      fieldName: 'stair_extra_charge_type',
+      label: '步梯加收',
+    },
+    {
+      component: 'InputNumber',
+      componentProps: {
+        placeholder: '请输入加收金额',
+        min: 0,
+        precision: 2,
+        addonAfter: '元/桶',
+      },
+      dependencies: {
+        show(values) {
+          return values.floor_type === 'stair' && values.stair_extra_charge_type === 'other';
+        },
+        triggerFields: ['floor_type', 'stair_extra_charge_type'],
+      },
+      fieldName: 'stair_extra_charge_custom',
+      label: '自定义加收',
+    },
+    {
       component: 'ApiSelect',
       fieldName: 'brand',
       label: '桶装水品牌',
@@ -313,11 +377,24 @@ const [Modal, modalApi] = useVbenModal({
     modalApi.setState({ confirmLoading: true });
 
     const values = await formApi.getValues();
-    
+
     // 如果客户类型不是VIP，清空优惠方案
     if (values.customer_type !== 'vip') {
       values.vip_scheme = undefined;
     }
+
+    // 处理步梯加收费用
+    if (values.floor_type === 'stair' && values.stair_extra_charge_type) {
+      if (values.stair_extra_charge_type === 'other') {
+        values.stair_extra_charge = values.stair_extra_charge_custom;
+      } else {
+        values.stair_extra_charge = Number(values.stair_extra_charge_type);
+      }
+    } else {
+      values.stair_extra_charge = null;
+    }
+    delete values.stair_extra_charge_type;
+    delete values.stair_extra_charge_custom;
     
     // 只使用 props 传递的数据
     const customerData = props.customerData;
@@ -475,6 +552,20 @@ const [Modal, modalApi] = useVbenModal({
         await formApi.setValues({
           empty_bucket_deposit: Number((owed * depositPerBucket.value).toFixed(2)),
         });
+        // 处理步梯加收费用的回显
+        if (data.floor_type === 'stair' && data.stair_extra_charge) {
+          const charge = Number(data.stair_extra_charge);
+          if (charge === 2) {
+            await formApi.setValues({ stair_extra_charge_type: '2' });
+          } else if (charge === 3) {
+            await formApi.setValues({ stair_extra_charge_type: '3' });
+          } else {
+            await formApi.setValues({
+              stair_extra_charge_type: 'other',
+              stair_extra_charge_custom: charge,
+            });
+          }
+        }
         // 标题通过插槽设置
       } else {
         // 新增模式：重置表单并设置默认值

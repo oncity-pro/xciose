@@ -61,6 +61,12 @@ export interface Customer {
   pricePerBucket?: number; // 驼峰命名（供前端使用）
   // 新增字段：VIP优惠方案
   vip_scheme?: '10_1' | '20_3' | '30_5' | '50_10' | null;
+  // 新增字段：楼层类型
+  floor_type?: 'default' | 'elevator' | 'stair' | 'residential';
+  // 新增字段：步梯加收费用
+  stair_extra_charge?: number | null;
+  // 新增字段：客户来源
+  source?: 'wechat' | 'internet' | 'phone';
   // 桶押金显示
   bucket_deposit_display?: string;
 }
@@ -97,6 +103,12 @@ export interface CustomerCreateData {
   price_per_bucket?: number;
   // 新增字段：VIP优惠方案
   vip_scheme?: '10_1' | '20_3' | '30_5' | '50_10' | null;
+  // 新增字段：楼层类型
+  floor_type?: 'default' | 'elevator' | 'stair' | 'residential';
+  // 新增字段：步梯加收费用
+  stair_extra_charge?: number | null;
+  // 新增字段：客户来源
+  source?: 'wechat' | 'internet' | 'phone';
 }
 
 export interface CustomerUpdateData {
@@ -122,6 +134,12 @@ export interface CustomerUpdateData {
   price_per_bucket?: number;
   // 新增字段：VIP优惠方案
   vip_scheme?: '10_1' | '20_3' | '30_5' | '50_10' | null;
+  // 新增字段：楼层类型
+  floor_type?: 'default' | 'elevator' | 'stair' | 'residential';
+  // 新增字段：步梯加收费用
+  stair_extra_charge?: number | null;
+  // 新增字段：客户来源
+  source?: 'wechat' | 'internet' | 'phone';
 }
 
 // ==================== 统计数据类型 ====================

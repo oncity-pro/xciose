@@ -35,6 +35,8 @@ class CustomerSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'customer_type', 'customer_type_display', 'brand', 'brand_name',
                   'open_date', 'last_delivery_date', 'close_date',
                   'phone', 'remark', 'is_active', 'created_at', 'updated_at', 'storage_amount', 'owed_empty_bucket', 'total_water_usage', 'total_consumption', 'price_per_bucket', 'vip_scheme',
+                  'floor_type', 'stair_extra_charge',
+                  'source',
                   'bucket_deposit_display']
         read_only_fields = ['created_at', 'updated_at']
 

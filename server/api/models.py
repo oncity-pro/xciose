@@ -189,6 +189,39 @@ class Customer(models.Model):
         null=True,
         verbose_name='VIP优惠方案'
     )
+    # 新增字段：楼层类型
+    FLOOR_TYPE_CHOICES = [
+        ('default', '默认'),
+        ('elevator', '电梯'),
+        ('stair', '步梯'),
+        ('residential', '住宅'),
+    ]
+    floor_type = models.CharField(
+        max_length=20,
+        choices=FLOOR_TYPE_CHOICES,
+        default='default',
+        verbose_name='楼层'
+    )
+    # 新增字段：步梯加收费用
+    stair_extra_charge = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name='步梯加收费用'
+    )
+    # 新增字段：客户来源
+    SOURCE_CHOICES = [
+        ('wechat', '微信'),
+        ('internet', '互联网'),
+        ('phone', '电话'),
+    ]
+    source = models.CharField(
+        max_length=20,
+        choices=SOURCE_CHOICES,
+        default='wechat',
+        verbose_name='客户来源'
+    )
 
     class Meta:
         db_table = 'api_customer'  # 确保使用正确的表名
