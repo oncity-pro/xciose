@@ -580,8 +580,12 @@ const [Modal, modalApi] = useVbenModal({
           console.error('获取下一个客户编号失败:', error);
         }
 
-        // 设置默认值
-        const today = new Date().toISOString().split('T')[0]; // 获取今天的日期，格式为 YYYY-MM-DD
+        // 设置默认值（使用本地时间避免 UTC 偏移导致日期差一天）
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = String(now.getMonth() + 1).padStart(2, '0');
+        const d = String(now.getDate()).padStart(2, '0');
+        const today = `${y}-${m}-${d}`;
         await formApi.setValues({
           open_date: today, // 设置开户日期为今天
           last_delivery_date: today, // 设置送水日期为今天
