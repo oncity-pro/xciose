@@ -7,15 +7,15 @@ import { computed, onMounted, ref, watch, nextTick } from 'vue';
 
 import { Page, useVbenModal } from '@vben/common-ui';
 import { Plus } from '@vben/icons';
-import { Award, Ban, Clock, Crown, Eye, Lock, Package, Pencil, Search, User, UserPlus, Users, UserX } from 'lucide-vue-next';
+import { Award, Ban, Clock, Crown, Eye, Lock, Package, Pencil, Search, Trash2, User, UserPlus, Users } from 'lucide-vue-next';
 
 import { Button, Input, message, Modal, Tooltip } from 'ant-design-vue';
 
 import { useVbenVxeGrid } from '#/adapter/vxe-table';
 import {
+  deleteCustomerApi,
   getCustomerListApi,
   getCustomerStatsApi,
-  updateCustomerApi,
 } from '#/api/customer';
 import { 
   getWaterBrandListApi
@@ -155,41 +155,41 @@ async function onEdit(row: Customer) {
   formModalApi.open();
 }
 
-// 点击注销按钮，弹出确认对话框
-function handleCloseClick(row: Customer) {
+// 点击删除按钮，弹出确认对话框
+function handleDeleteClick(row: Customer) {
   Modal.confirm({
-    title: '确定要注销这个客户吗？',
-    content: '注销后客户状态将变为"已注销"，可在后端恢复。',
-    okText: '确定注销',
+    title: '确定要删除这个客户吗？',
+    content: '删除后将无法恢复，请谨慎操作。',
+    okText: '确定删除',
     okType: 'danger',
     cancelText: '取消',
-    onOk: () => onCloseCustomer(row),
+    onOk: () => onDeleteCustomer(row),
   });
 }
 
-// 注销客户（将客户类型改为已注销）
-async function onCloseCustomer(row: Customer) {
+// 删除客户
+async function onDeleteCustomer(row: Customer) {
   // 验证客户 ID 是否存在
   if (!row.id) {
-    message.error('客户编号不存在，无法注销');
-    console.error('注销失败：客户数据缺少 ID', row);
+    message.error('客户编号不存在，无法删除');
+    console.error('删除失败：客户数据缺少 ID', row);
     return;
   }
 
   try {
-    console.warn(`准备注销客户，ID: ${row.id}`);
-    await updateCustomerApi(row.id, { customer_type: 'closed' } as any);
-    message.success('注销成功');
+    console.warn(`准备删除客户，ID: ${row.id}`);
+    await deleteCustomerApi(String(row.id));
+    message.success('删除成功');
     refreshGrid();
   } catch (error: any) {
-    console.error('注销失败:', error);
+    console.error('删除失败:', error);
 
     // 检查错误响应
-    let errorMessage = '注销失败';
+    let errorMessage = '删除失败';
     if (error.response) {
       // 服务器响应了错误状态码
       if (error.response.status === 404) {
-        errorMessage = '客户不存在，无法注销';
+        errorMessage = '客户不存在，无法删除';
       } else if (error.response.data?.message) {
         errorMessage = error.response.data.message;
       } else if (error.response.data?.detail) {
@@ -560,8 +560,8 @@ onMounted(() => {
                 <Button type="link" size="small" title="编辑" @click="onEdit(row)">
                   <Pencil class="size-4" />
                 </Button>
-                <Button type="link" size="small" danger title="注销" @click="handleCloseClick(row)">
-                  <UserX class="size-4" />
+                <Button type="link" size="small" danger title="删除" @click="handleDeleteClick(row)">
+                  <Trash2 class="size-4" />
                 </Button>
               </div>
             </template>

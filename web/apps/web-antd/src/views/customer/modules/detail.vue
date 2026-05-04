@@ -1,11 +1,11 @@
 <script lang="ts" setup>
 import type { Customer } from '#/api/customer';
 
-import { computed, nextTick, ref, watch } from 'vue';
+import { computed, nextTick, ref } from 'vue';
 
 import { useVbenModal } from '@vben/common-ui';
 
-import { Button, Card, Descriptions, DescriptionsItem, Modal, Tag } from 'ant-design-vue';
+import { Button, Card, Descriptions, DescriptionsItem, Modal, Tag, message } from 'ant-design-vue';
 
 import { getBucketDepositConfigApi } from '#/api/settings';
 import {
@@ -59,12 +59,18 @@ const deliveryGridOptions: VxeTableGridOptions<any> = {
       if (editableRowIds.value.has(row.id)) {
         return true;
       }
-      // 空行点击送水日期单元格时，只有上一行有数据才允许进入编辑状态
+      // 空行点击送水日期单元格时，允许进入编辑状态
       if (String(row.id).startsWith('__empty__') && column.field === 'date') {
         const data = $table.getData() || [];
         const rowIndex = data.findIndex((r: any) => r.id === row.id);
         const prevRow = data[rowIndex - 1];
         const nextRow = data[rowIndex + 1];
+        // 第一个空行（基于客户信息的初始行）直接允许编辑
+        if (rowIndex === deliveryRecords.value.length) {
+          editableRowIds.value.add(row.id);
+          return true;
+        }
+        // 后续空行：只有上一行有数据才允许进入编辑状态
         if (prevRow && prevRow.date) {
           editableRowIds.value.add(row.id);
           // 只有上下行并非同时有数据时，才默认填充当天日期（使用本地时间避免UTC偏移）
@@ -104,14 +110,12 @@ const deliveryGridOptions: VxeTableGridOptions<any> = {
       field: 'owed_empty_buckets',
       title: '欠空桶',
       width: 100,
-      editRender: { name: 'input' },
       formatter: ({ cellValue, row }: any) => (row.date ? cellValue : ''),
     },
     {
       field: 'storage_amount',
       title: '存水量',
       width: 100,
-      editRender: { name: 'input' },
       formatter: ({ cellValue, row }: any) => (row.date ? cellValue : ''),
     },
     {
@@ -141,7 +145,6 @@ const displayDeliveryRecords = computed(() => {
   const data = deliveryRecords.value.map((r) => ({ ...r }));
   while (data.length < 9) {
     const idx = data.length;
-    const prevRow = data[idx - 1];
     if (idx === deliveryRecords.value.length && customer.value && shouldFillEmptyRowDefaults.value) {
       // 第一个空行：基于客户信息填充默认值（只在初始加载时）
       const openDate = customer.value.open_date || customer.value.openDate || '';
@@ -158,21 +161,8 @@ const displayDeliveryRecords = computed(() => {
         storage_amount: isVip ? storage - owedBuckets : 0,
         remark: '',
       } as any);
-    } else if (prevRow) {
-      // 第二个及后续空行：欠空桶基于上一行计算，存水量不参与计算
-      const prevWater = Number(prevRow.water_delivered) || 0;
-      const prevReturned = Number(prevRow.buckets_returned) || 0;
-      data.push({
-        id: `__empty__${idx}`,
-        customer: '',
-        date: '',
-        water_delivered: '',
-        buckets_returned: '',
-        owed_empty_buckets: prevWater - prevReturned,
-        storage_amount: '',
-        remark: '',
-      } as any);
     } else {
+      // 后续空行：全部为空，由用户输入后计算
       data.push({
         id: `__empty__${idx}`,
         customer: '',
@@ -206,9 +196,18 @@ async function loadDeliveryRecords() {
   }
 }
 
-async function handleEditClosed({ row, column }: any) {
+async function handleEditClosed({ row, column, $table }: any) {
   const field = column?.field || column?.property;
   console.log('edit-closed triggered', { field, rowId: row?.id, row, column });
+
+  // 获取表格数据以找到上一行
+  const tableData = $table ? $table.getData() : [];
+  const rowIndex = tableData.findIndex((r: any) => r.id === row.id);
+  const prevRow = rowIndex > 0 ? tableData[rowIndex - 1] : null;
+  // 判断是否是第一个空行（基于客户信息的初始行）
+  const isFirstEmptyRow =
+    String(row.id).startsWith('__empty__') &&
+    rowIndex === deliveryRecords.value.length;
 
   // 先把当前编辑行的数据同步回源数据，防止后续刷新覆盖用户输入
   const record = deliveryRecords.value.find((r) => r.id === row.id);
@@ -221,16 +220,41 @@ async function handleEditClosed({ row, column }: any) {
     record.remark = row.remark;
   }
 
-  // 如果编辑的是送水量列，自动根据客户总存水量扣减
-  if (field === 'water_delivered') {
+  // 如果编辑的是送水量或回桶数列，自动计算欠桶数和存水量
+  if (field === 'water_delivered' || field === 'buckets_returned') {
     const delivered = Number(row.water_delivered) || 0;
-    const totalStorage = customer.value?.storage_amount ?? 0;
-    const newStorage = totalStorage - delivered;
-    row.storage_amount = newStorage;
-    if (record) {
-      record.storage_amount = newStorage;
+    const returned = Number(row.buckets_returned) || 0;
+
+    // 欠桶数 = 送水量 - 回桶数
+    row.owed_empty_buckets = delivered - returned;
+
+    // 存水量计算（仅套餐客户）
+    const isVip = customer.value?.customer_type === 'vip';
+    if (isVip) {
+      if (isFirstEmptyRow) {
+        // 第一行（初始行）：存水量 = 客户总存水量 - 送水量
+        const totalStorage = customer.value?.storage_amount ?? 0;
+        row.storage_amount = totalStorage - delivered;
+      } else if (prevRow) {
+        // 后续行：存水量 = 上一行存水量 - 送水量
+        const prevStorage = Number(prevRow.storage_amount) || 0;
+        row.storage_amount = prevStorage - delivered;
+      }
+    } else {
+      row.storage_amount = 0;
     }
-    console.log('自动计算存水量:', { delivered, totalStorage, result: newStorage });
+
+    if (record) {
+      record.owed_empty_buckets = row.owed_empty_buckets;
+      record.storage_amount = row.storage_amount;
+    }
+    console.log('自动计算欠桶数和存水量:', {
+      delivered,
+      returned,
+      owed: row.owed_empty_buckets,
+      storage: row.storage_amount,
+      isFirstEmptyRow,
+    });
   }
 
   // 空行不刷新表格（避免覆盖用户输入），真实数据行刷新以确保显示正确
@@ -291,19 +315,77 @@ function handleAddRow(row: any) {
 }
 
 async function handleSaveRow(row: any) {
+  // 1. 强制让当前编辑的 input 失去焦点，触发数据写回表格
+  const activeElement = document.activeElement as HTMLElement | null;
+  if (activeElement && activeElement.tagName === 'INPUT') {
+    activeElement.blur();
+  }
+
+  // 2. 强制退出表格编辑状态
+  const grid = deliveryGridApi.grid;
+  const table = (grid as any).$table || grid;
+  if (table) {
+    if (typeof table.clearEdit === 'function') {
+      await table.clearEdit();
+    } else if (typeof table.clearActived === 'function') {
+      await table.clearActived();
+    }
+  }
+
+  // 3. 等待 editClosed 处理及 DOM 更新
+  await nextTick();
+  await new Promise((resolve) => setTimeout(resolve, 50));
+
+  // 4. 从表格数据中重新获取该行的最新值（防止 row 引用未同步）
+  const tableData = table && typeof table.getData === 'function' ? table.getData() : [];
+  const latestRow = tableData.find((r: any) => r.id === row.id);
+  const data = latestRow || row;
+
+  // 5. 强制计算欠桶数和存水量（不依赖 edit-closed 中的计算）
+  const delivered = Number(data.water_delivered) || 0;
+  const returned = Number(data.buckets_returned) || 0;
+  const owed = delivered - returned;
+
+  const isVip = customer.value?.customer_type === 'vip';
+  let storage = 0;
+  if (isVip) {
+    const rowIndex = tableData.findIndex((r: any) => r.id === data.id);
+    const isFirstEmptyRow =
+      String(data.id).startsWith('__empty__') &&
+      rowIndex === deliveryRecords.value.length;
+    const prevRow = rowIndex > 0 ? tableData[rowIndex - 1] : null;
+    if (isFirstEmptyRow) {
+      storage = (customer.value?.storage_amount ?? 0) - delivered;
+    } else if (prevRow) {
+      storage = (Number(prevRow.storage_amount) || 0) - delivered;
+    }
+  }
+
+  // 6. 把计算结果写回 row，确保后续显示和 API 都使用正确值
+  data.owed_empty_buckets = owed;
+  data.storage_amount = storage;
+  row.owed_empty_buckets = owed;
+  row.storage_amount = storage;
+
   const isEmptyRow = String(row.id).startsWith('__empty__');
+
+  // 空行保存前校验关键字段
+  if (isEmptyRow && !data.date) {
+    message.warning('请填写送水日期');
+    return;
+  }
 
   try {
     if (isEmptyRow) {
       // 空行：创建新记录
       const newRecord = await createDeliveryRecordApi({
         customer: String(customer.value!.id),
-        date: row.date,
-        water_delivered: Number(row.water_delivered) || 0,
-        buckets_returned: Number(row.buckets_returned) || 0,
-        owed_empty_buckets: Number(row.owed_empty_buckets) || 0,
-        storage_amount: Number(row.storage_amount) || 0,
-        remark: row.remark,
+        date: data.date,
+        water_delivered: delivered,
+        buckets_returned: returned,
+        owed_empty_buckets: owed,
+        storage_amount: storage,
+        remark: data.remark,
       });
       // 添加到源数据头部，表格会自动刷新
       deliveryRecords.value.unshift(newRecord);
@@ -318,12 +400,12 @@ async function handleSaveRow(row: any) {
     } else {
       // 真实数据行：更新记录
       await updateDeliveryRecordApi(row.id, {
-        date: row.date,
-        water_delivered: row.water_delivered,
-        buckets_returned: row.buckets_returned,
-        owed_empty_buckets: row.owed_empty_buckets,
-        storage_amount: row.storage_amount,
-        remark: row.remark,
+        date: data.date,
+        water_delivered: delivered,
+        buckets_returned: returned,
+        owed_empty_buckets: owed,
+        storage_amount: storage,
+        remark: data.remark,
       });
       editableRowIds.value.delete(row.id);
     }
