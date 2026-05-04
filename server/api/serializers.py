@@ -142,7 +142,7 @@ class CustomerSerializer(serializers.ModelSerializer):
     def validate_open_date(self, value):
         """验证开户日期"""
         from django.utils import timezone
-        if value and value > timezone.now().date():
+        if value and value > timezone.localdate():
             raise serializers.ValidationError("开户日期不能是未来日期")
         return value
 

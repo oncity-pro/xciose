@@ -7,7 +7,7 @@ import { computed, onMounted, ref, watch, nextTick } from 'vue';
 
 import { Page, useVbenModal } from '@vben/common-ui';
 import { Plus } from '@vben/icons';
-import { Award, Ban, Clock, Crown, Eye, Lock, Package, Pencil, Search, Trash2, User, UserPlus, Users } from 'lucide-vue-next';
+import { Award, Ban, Clock, Crown, Eye, Lock, Package, Pencil, Search, Trash2, User, UserPlus, Users, UserX } from 'lucide-vue-next';
 
 import { Button, Input, message, Modal, Tooltip } from 'ant-design-vue';
 
