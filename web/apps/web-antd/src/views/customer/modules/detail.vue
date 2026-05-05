@@ -204,14 +204,10 @@ async function loadDeliveryRecords() {
 
 async function handleEditClosed({ row, column, $table }: any) {
   const field = column?.field || column?.property;
-  console.log('edit-closed triggered', { field, rowId: row?.id, row, column });
-
-  // 获取表格数据以找到上一行
   const tableData = $table ? $table.getData() : [];
   const rowIndex = tableData.findIndex((r: any) => r.id === row.id);
   const prevRow = rowIndex > 0 ? tableData[rowIndex - 1] : null;
   const isFirstEmptyRow = row.isInitRow;
-  const isEmptyRow = String(row.id).startsWith('__empty__');
 
   // 如果编辑的是送水量或回桶数列，自动计算欠桶数和存水量
   if (field === 'water_delivered' || field === 'buckets_returned') {
@@ -231,18 +227,24 @@ async function handleEditClosed({ row, column, $table }: any) {
     } else {
       row.storage_amount = 0;
     }
+  }
+}
 
-    console.log('自动计算欠桶数和存水量:', {
-      delivered,
-      returned,
-      owed: row.owed_empty_buckets,
-      storage: row.storage_amount,
-      isFirstEmptyRow,
-    });
+async function handleSaveRow(row: any) {
+  // 先关闭当前编辑单元格，确保数据已提交到 row
+  const grid = deliveryGridApi.grid;
+  const table = (grid as any).$table || grid;
+  if (table && typeof table.clearEdit === 'function') {
+    table.clearEdit();
   }
 
+  const tableData = table && typeof table.getData === 'function' ? table.getData() : [];
+  const rowIndex = tableData.findIndex((r: any) => r.id === row.id);
+  const prevRow = rowIndex > 0 ? tableData[rowIndex - 1] : null;
+  const isFirstEmptyRow = row.isInitRow;
+  const isEmptyRow = String(row.id).startsWith('__empty__');
+
   if (isEmptyRow) {
-    // 空行：有日期才自动保存
     if (!row.date) {
       editableRowIds.value.delete(row.id);
       return;
@@ -279,26 +281,14 @@ async function handleEditClosed({ row, column, $table }: any) {
       deliveryRecords.value.push(newRecord);
       await deliveryGridApi.setGridOptions({ data: tableData });
       editableRowIds.value.delete(row.id);
-      editableRowIds.value.add(newRecord.id);
     } catch (error) {
       console.error('保存送水记录失败:', error);
     }
     return;
   }
 
-  // 真实数据行：自动更新到后端
+  // 真实数据行
   if (!row.id) return;
-
-  // 同步回源数据
-  const record = deliveryRecords.value.find((r) => r.id === row.id);
-  if (record) {
-    record.date = row.date;
-    record.water_delivered = row.water_delivered;
-    record.buckets_returned = row.buckets_returned;
-    record.owed_empty_buckets = row.owed_empty_buckets;
-    record.storage_amount = row.storage_amount;
-    record.remark = row.remark;
-  }
 
   try {
     await updateDeliveryRecordApi(row.id, {
@@ -309,10 +299,23 @@ async function handleEditClosed({ row, column, $table }: any) {
       storage_amount: row.storage_amount,
       remark: row.remark,
     });
+    const record = deliveryRecords.value.find((r) => r.id === row.id);
+    if (record) {
+      record.date = row.date;
+      record.water_delivered = row.water_delivered;
+      record.buckets_returned = row.buckets_returned;
+      record.owed_empty_buckets = row.owed_empty_buckets;
+      record.storage_amount = row.storage_amount;
+      record.remark = row.remark;
+    }
     editableRowIds.value.delete(row.id);
   } catch (error) {
     console.error('更新送水记录失败:', error);
   }
+}
+
+function isEditingRow(row: any) {
+  return editableRowIds.value.has(row.id);
 }
 
 // 把 edit-closed 事件绑定到 gridEvents 上，确保 VxeGrid 能正确接收
@@ -389,6 +392,10 @@ function handleDeleteRow(row: any) {
     },
   });
 }
+
+onBeforeUnmount(() => {
+  editableRowIds.value.clear();
+});
 
 function getCustomerTypeColor(type?: string) {
   switch (type) {
@@ -499,9 +506,17 @@ function getCustomerTypeLabel(type?: string) {
         <DeliveryGrid class="w-full">
           <template #action="{ row }">
             <div class="flex items-center gap-1">
-              <template v-if="!String(row.id).startsWith('__empty__')">
+              <template v-if="isEditingRow(row)">
                 <Button
-                  v-if="isLastDataRow(row)"
+                  type="link"
+                  size="small"
+                  @click="handleSaveRow(row)"
+                >
+                  保存
+                </Button>
+              </template>
+              <template v-if="!String(row.id).startsWith('__empty__') && isLastDataRow(row)">
+                <Button
                   type="link"
                   danger
                   size="small"
