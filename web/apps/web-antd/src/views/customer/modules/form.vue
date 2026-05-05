@@ -291,6 +291,7 @@ const [Form, formApi] = useVbenForm({
       componentProps: {
         placeholder: '请输入存水量',
         min: 0,
+        disabled: true,  // 开户存水量永久不可变更
       },
       fieldName: 'storage_amount',
       label: '存水量',

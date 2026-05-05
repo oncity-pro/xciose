@@ -5,7 +5,22 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue';
 
 import { useVbenModal } from '@vben/common-ui';
 
-import { Button, Card, Descriptions, DescriptionsItem, Modal, Tag } from 'ant-design-vue';
+import {
+  Button,
+  Card,
+  DatePicker,
+  Descriptions,
+  DescriptionsItem,
+  Form,
+  FormItem,
+  InputNumber,
+  message,
+  Modal,
+  Select,
+  Tag,
+} from 'ant-design-vue';
+
+import dayjs from 'dayjs';
 
 import { getBucketDepositConfigApi } from '#/api/settings';
 import { getCustomerDetailApi } from '#/api/customer';
@@ -127,18 +142,32 @@ const deliveryGridOptions: VxeTableGridOptions<any> = {
       title: '送水量',
       width: 100,
       editRender: { name: 'input' },
+      formatter: ({ cellValue, row }: any) => {
+        if (!row.date) return '';
+        if (isRenewalRow(row)) return '';
+        return cellValue;
+      },
     },
     {
       field: 'buckets_returned',
       title: '回桶数',
       width: 100,
       editRender: { name: 'input' },
+      formatter: ({ cellValue, row }: any) => {
+        if (!row.date) return '';
+        if (isRenewalRow(row)) return '';
+        return cellValue;
+      },
     },
     {
       field: 'owed_empty_buckets',
       title: '欠空桶',
       width: 100,
-      formatter: ({ cellValue, row }: any) => (row.date ? cellValue : ''),
+      formatter: ({ cellValue, row }: any) => {
+        if (!row.date) return '';
+        if (isRenewalRow(row)) return '';
+        return cellValue;
+      },
     },
     {
       field: 'storage_amount',
@@ -420,6 +449,10 @@ function isEditingRow(row: any) {
   return editableRowIds.value.has(row.id);
 }
 
+function isRenewalRow(row: any) {
+  return String(row.remark || '').includes('续存');
+}
+
 // 把 edit-closed 事件绑定到 gridEvents 上，确保 VxeGrid 能正确接收
 deliveryGridApi.setState({
   gridEvents: {
@@ -475,6 +508,97 @@ function handleDeleteRow(row: any) {
 onBeforeUnmount(() => {
   editableRowIds.value.clear();
 });
+
+// ============ 续存弹窗 ============
+const renewalModalVisible = ref(false);
+const renewalDate = ref(dayjs());
+const renewalVipScheme = ref<string | undefined>(undefined);
+const renewalStorageAmount = ref<number | undefined>(undefined);
+const renewalSubmitting = ref(false);
+
+const VIP_SCHEME_OPTIONS = [
+  { label: '10送1', value: '10_1' },
+  { label: '20送3', value: '20_3' },
+  { label: '30送5', value: '30_5' },
+  { label: '50送10', value: '50_10' },
+];
+
+// 选择优惠方案后自动计算存水量
+watch(
+  () => renewalVipScheme.value,
+  (scheme) => {
+    if (scheme) {
+      const match = scheme.match(/(\d+)_(\d+)/);
+      if (match) {
+        const buy = Number(match[1]);
+        const give = Number(match[2]);
+        renewalStorageAmount.value = buy + give;
+      }
+    }
+  },
+);
+
+function openRenewalModal() {
+  if (!customer.value) return;
+  renewalDate.value = dayjs();
+  renewalVipScheme.value = customer.value.vip_scheme || undefined;
+  renewalStorageAmount.value = undefined;
+  renewalModalVisible.value = true;
+}
+
+async function handleRenewalSubmit() {
+  if (!customer.value?.id) return;
+  if (!renewalDate.value) {
+    message.warning('请选择续存日期');
+    return;
+  }
+  if (!renewalStorageAmount.value || renewalStorageAmount.value <= 0) {
+    message.warning('请输入续存存水量');
+    return;
+  }
+
+  renewalSubmitting.value = true;
+  try {
+    const addStorage = renewalStorageAmount.value;
+    const dateStr = renewalDate.value.format('YYYY-MM-DD');
+
+    // 从已有送水记录获取当前存水量，若无记录则取客户初始存水量
+    const lastRecord =
+      deliveryRecords.value.length > 0
+        ? deliveryRecords.value[deliveryRecords.value.length - 1]
+        : null;
+    const currentStorage = lastRecord
+      ? (lastRecord.storage_amount ?? 0)
+      : (customer.value.storage_amount ?? 0);
+    const newStorage = currentStorage + addStorage;
+
+    // 创建续存记录（送水量、回桶数、欠空桶均默认为0）
+    await createDeliveryRecordApi({
+      customer: String(customer.value.id),
+      date: dateStr,
+      water_delivered: 0,
+      buckets_returned: 0,
+      owed_empty_buckets: 0,
+      storage_amount: newStorage,
+      remark: `续存${addStorage}桶`,
+    });
+
+    message.success('续存成功');
+    renewalModalVisible.value = false;
+    await loadDeliveryRecords();
+  } catch (error: any) {
+    console.error('续存失败:', error);
+    const responseData = error?.response?.data ?? {};
+    const msg =
+      responseData?.message ||
+      responseData?.detail ||
+      error?.message ||
+      '续存失败';
+    message.error(msg);
+  } finally {
+    renewalSubmitting.value = false;
+  }
+}
 
 const [VbenModal, modalApi] = useVbenModal({
   onOpenChange(isOpen: boolean) {
@@ -571,7 +695,7 @@ function getCustomerTypeLabel(type?: string) {
       <DescriptionsItem label="最后送水日期：">
         {{ customer.lastDeliveryDate || customer.last_delivery_date || '-' }}
       </DescriptionsItem>
-      <DescriptionsItem label="存水量：">
+      <DescriptionsItem label="开户存水量：">
         {{ customer.storage_amount != null ? `${customer.storage_amount} 桶` : '-' }}
       </DescriptionsItem>
       <DescriptionsItem label="总用水量：">
@@ -600,6 +724,11 @@ function getCustomerTypeLabel(type?: string) {
         :head-style="{ padding: '6px 12px', minHeight: 'auto', textAlign: 'center' }"
         :body-style="{ padding: '8px' }"
       >
+        <template #extra>
+          <Button type="primary" size="small" @click="openRenewalModal">
+            续存
+          </Button>
+        </template>
         <DeliveryGrid class="w-full">
           <template #action="{ row }">
             <div class="flex items-center gap-1">
@@ -626,6 +755,47 @@ function getCustomerTypeLabel(type?: string) {
         </DeliveryGrid>
       </Card>
     </div>
+    <!-- 续存弹窗 -->
+    <Modal
+      v-model:open="renewalModalVisible"
+      title="客户续存"
+      :confirm-loading="renewalSubmitting"
+      @ok="handleRenewalSubmit"
+    >
+      <Form layout="vertical">
+        <FormItem label="续存日期" required>
+          <DatePicker
+            v-model:value="renewalDate"
+            format="YYYY-MM-DD"
+            style="width: 100%"
+          />
+        </FormItem>
+        <FormItem label="优惠方案">
+          <Select
+            v-model:value="renewalVipScheme"
+            placeholder="请选择优惠方案"
+            allow-clear
+            style="width: 100%"
+          >
+            <Select.Option
+              v-for="opt in VIP_SCHEME_OPTIONS"
+              :key="opt.value"
+              :value="opt.value"
+            >
+              {{ opt.label }}
+            </Select.Option>
+          </Select>
+        </FormItem>
+        <FormItem label="存水量" required>
+          <InputNumber
+            v-model:value="renewalStorageAmount"
+            :min="1"
+            placeholder="请输入续存存水量"
+            style="width: 100%"
+          />
+        </FormItem>
+      </Form>
+    </Modal>
   </VbenModal>
 </template>
 

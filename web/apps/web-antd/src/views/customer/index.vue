@@ -209,15 +209,15 @@ function refreshGrid() {
   loadStats();
 }
 
-// 存水量相关计算
+// 存水量相关计算（使用当前存水量）
 function getStorageRemaining(row: Customer): number {
-  const total = row.storage_amount || 0;
+  const total = row.current_storage_amount || row.storage_amount || 0;
   const used = row.total_water_usage || 0;
   return Math.max(0, total - used);
 }
 
 function getStoragePercent(row: Customer): number {
-  const total = row.storage_amount || 0;
+  const total = row.current_storage_amount || row.storage_amount || 0;
   if (total <= 0) return 0;
   const remaining = getStorageRemaining(row);
   return Math.round((remaining / total) * 100);
@@ -271,7 +271,7 @@ const gridOptions: VxeTableGridOptions<Customer> = {
     },
     { field: 'openDate', title: '开户日期', width: 120 },
     { field: 'lastDeliveryDate', title: '送水日期', width: 130 },
-    { field: 'storage_amount', title: '存水量', width: 150, sortable: true, align: 'center', slots: { default: 'storage', header: 'sortHeader' } },
+    { field: 'current_storage_amount', title: '存水量', width: 150, sortable: true, align: 'center', slots: { default: 'storage', header: 'sortHeader' } },
     { field: 'owed_empty_bucket', title: '欠空桶', width: 110, sortable: true, align: 'center', slots: { header: 'sortHeader' } },
     { field: 'bucket_deposit_display', title: '桶押金', width: 150, align: 'center' },
     { field: 'total_water_usage', title: '总用水量', width: 110, sortable: true, align: 'center', slots: { header: 'sortHeader' } },
@@ -540,7 +540,7 @@ onMounted(() => {
             <!-- 自定义存水量列的渲染 -->
             <template #storage="{ row }">
               <div class="flex items-center justify-center gap-1.5">
-                <span class="text-xs whitespace-nowrap">{{ getStorageRemaining(row) }}</span>
+                <span class="text-xs whitespace-nowrap">{{ row.current_storage_amount ?? row.storage_amount ?? 0 }}</span>
                 <div class="w-12 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                   <div
                     class="h-full rounded-full transition-all"

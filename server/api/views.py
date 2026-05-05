@@ -526,7 +526,10 @@ class CustomerDetailView(generics.RetrieveUpdateDestroyAPIView):
         """
         partial = kwargs.pop('partial', True)
         instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        # 开户存水量永久不可变更
+        data = request.data.copy()
+        data.pop('storage_amount', None)
+        serializer = self.get_serializer(instance, data=data, partial=partial)
         
         if not serializer.is_valid():
             print(f"数据验证失败: {serializer.errors}")
@@ -826,6 +829,7 @@ class DeliveryRecordDeleteView(APIView):
         customer.total_water_usage = (customer.total_water_usage or 0) - water_delivered
         
         # 注意：不再自动回滚客户欠空桶，欠空桶只在编辑客户时修改
+        # 注意：续存记录删除时不回滚客户存水量，客户信息（新建时的数据）永久不变
         
         # 删除记录
         record.delete()

@@ -46,8 +46,10 @@ export interface Customer {
   is_active?: boolean;
   created_at?: string;
   updated_at?: string;
-  // 新增字段：存水量
+  // 新增字段：存水量（开户存水量，永久不变）
   storage_amount?: number;
+  // 新增字段：当前存水量（最后一条送水记录的存水量）
+  current_storage_amount?: number;
   // 新增字段：欠空桶
   owed_empty_bucket?: number;
   // 新增字段：总用水量

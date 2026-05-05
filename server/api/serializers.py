@@ -95,8 +95,17 @@ class CustomerSerializer(serializers.ModelSerializer):
         data['closeDate'] = instance.close_date.isoformat() if instance.close_date else None
         # 处理 brand 字段（可能是 WaterBrand 对象或 None）
         data['brandId'] = instance.brand_id if instance.brand else None
-        # 添加驼峰命名的storage_amount字段
+        # 开户存水量（永久不变）
+        data['storage_amount'] = instance.storage_amount
         data['storageAmount'] = instance.storage_amount
+        # 当前存水量：取最新一条送水记录（按创建时间）的存水量
+        latest_record = instance.delivery_records.order_by('-created_at').first()
+        if latest_record:
+            data['current_storage_amount'] = latest_record.storage_amount
+            data['currentStorageAmount'] = latest_record.storage_amount
+        else:
+            data['current_storage_amount'] = instance.storage_amount
+            data['currentStorageAmount'] = instance.storage_amount
         # 添加驼峰命名的owed_empty_bucket字段
         data['owedEmptyBucket'] = instance.owed_empty_bucket
         # 添加驼峰命名的total_water_usage字段
@@ -113,6 +122,8 @@ class CustomerSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         """更新客户时，若标记为已注销则自动设置注销日期"""
         from django.utils import timezone
+        # 开户存水量永久不可变更
+        validated_data.pop('storage_amount', None)
         customer_type = validated_data.get('customer_type', instance.customer_type)
         if customer_type == 'closed' and not instance.close_date:
             validated_data['close_date'] = timezone.now().date()
