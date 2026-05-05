@@ -50,9 +50,6 @@ const editableRowIds = ref<Set<string | number>>(new Set());
 // 防止重复保存的锁
 const savingRowIds = ref<Set<string | number>>(new Set());
 
-// 控制是否自动填充第一行空行的默认值（只在初始加载时填充，保存后不再填充）
-const shouldFillEmptyRowDefaults = ref(true);
-
 // 送水记录
 const deliveryRecords = ref<DeliveryRecord[]>([]);
 const deliveryLoading = ref(false);
@@ -179,6 +176,17 @@ const displayDeliveryRecords = computed(() => {
   if (customer.value) {
     const openDate = customer.value.open_date || customer.value.openDate || '';
     const storage = customer.value.storage_amount ?? 0;
+    // 根据优惠方案生成初始行备注
+    let initRemark = '';
+    const vipScheme = customer.value.vip_scheme;
+    if (vipScheme) {
+      const match = vipScheme.match(/(\d+)[_\-](\d+)/);
+      if (match) {
+        const buy = Number(match[1]);
+        const give = Number(match[2]);
+        initRemark = `订${buy}桶赠送${give}桶，共${buy + give}桶`;
+      }
+    }
     data.push({
       id: '__empty__0',
       isInitRow: true,
@@ -188,7 +196,7 @@ const displayDeliveryRecords = computed(() => {
       buckets_returned: 0,
       owed_empty_buckets: 0,
       storage_amount: storage,
-      remark: '',
+      remark: initRemark,
     } as any);
   }
 
@@ -357,9 +365,17 @@ async function handleSaveRow(row: any) {
           remark: row.remark,
         });
         deliveryRecords.value.push(newRecord);
+        // 保持按创建时间排序
+        deliveryRecords.value.sort((a, b) => {
+          const timeA = a.created_at || '';
+          const timeB = b.created_at || '';
+          return String(timeA).localeCompare(String(timeB));
+        });
         editableRowIds.value.delete(row.id);
-        // 并行刷新客户数据和送水记录，减少闪烁
-        await Promise.all([refreshCustomerData(), loadDeliveryRecords()]);
+        await refreshCustomerData();
+        await deliveryGridApi.setGridOptions({
+          data: displayDeliveryRecords.value,
+        });
       } catch (error) {
         console.error('保存送水记录失败:', error);
       }
@@ -388,8 +404,10 @@ async function handleSaveRow(row: any) {
         record.remark = row.remark;
       }
       editableRowIds.value.delete(row.id);
-      // 并行刷新客户数据和送水记录，减少闪烁
-      await Promise.all([refreshCustomerData(), loadDeliveryRecords()]);
+      await refreshCustomerData();
+      await deliveryGridApi.setGridOptions({
+        data: displayDeliveryRecords.value,
+      });
     } catch (error) {
       console.error('更新送水记录失败:', error);
     }
@@ -443,8 +461,10 @@ function handleDeleteRow(row: any) {
         editableRowIds.value = new Set(
           [...editableRowIds.value].filter((id) => !String(id).startsWith('__empty__')),
         );
-        // 并行刷新客户数据和送水记录，减少闪烁
-        await Promise.all([refreshCustomerData(), loadDeliveryRecords()]);
+        await refreshCustomerData();
+        await deliveryGridApi.setGridOptions({
+          data: displayDeliveryRecords.value,
+        });
       } catch (error) {
         console.error('删除送水记录失败:', error);
       }
