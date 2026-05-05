@@ -155,47 +155,32 @@ const [DeliveryGrid, deliveryGridApi] = useVbenVxeGrid({
 });
 
 const displayDeliveryRecords = computed(() => {
-  const data = deliveryRecords.value.map((r) => ({ ...r }));
-  while (data.length < 9) {
-    const idx = data.length;
-    const hasNoRecords = deliveryRecords.value.length === 0;
-    if (idx === deliveryRecords.value.length && customer.value) {
-      // 第一行空行始终保留 isInitRow 标识，确保欠空桶按独立逻辑计算
-      if (shouldFillEmptyRowDefaults.value && hasNoRecords) {
-        // 没有任何送水记录时，填充客户默认值方便初始录入
-        const openDate = customer.value.open_date || customer.value.openDate || '';
-        const owedBuckets = customer.value.owed_empty_bucket ?? 0;
-        const storage = customer.value.storage_amount ?? 0;
-        const isVip = customer.value.customer_type === 'vip';
-        data.push({
-          id: `__empty__${idx}`,
-          isInitRow: true,
-          customer: '',
-          date: openDate,
-          water_delivered: owedBuckets,
-          buckets_returned: 0,
-          owed_empty_buckets: 0,
-          storage_amount: isVip ? storage - owedBuckets : 0,
-          remark: '',
-        } as any);
-      } else {
-        // 已有送水记录时，isInitRow 空行字段全部留空，避免被误认为自动创建的记录
-        data.push({
-          id: `__empty__${idx}`,
-          isInitRow: true,
-          customer: '',
-          date: '',
-          water_delivered: '',
-          buckets_returned: '',
-          owed_empty_buckets: '',
-          storage_amount: '',
-          remark: '',
-        } as any);
-      }
-    } else {
-      // 后续空行
+  const data: any[] = [];
+
+  // 序号1：始终是初始行（isInitRow），固定在表格第一行
+  if (customer.value) {
+    if (shouldFillEmptyRowDefaults.value && deliveryRecords.value.length === 0) {
+      // 没有任何送水记录时，填充客户默认值方便初始录入
+      const openDate = customer.value.open_date || customer.value.openDate || '';
+      const owedBuckets = customer.value.owed_empty_bucket ?? 0;
+      const storage = customer.value.storage_amount ?? 0;
+      const isVip = customer.value.customer_type === 'vip';
       data.push({
-        id: `__empty__${idx}`,
+        id: '__empty__0',
+        isInitRow: true,
+        customer: '',
+        date: openDate,
+        water_delivered: owedBuckets,
+        buckets_returned: 0,
+        owed_empty_buckets: 0,
+        storage_amount: isVip ? storage - owedBuckets : 0,
+        remark: '',
+      } as any);
+    } else {
+      // 已有送水记录时，isInitRow 空行字段全部留空
+      data.push({
+        id: '__empty__0',
+        isInitRow: true,
         customer: '',
         date: '',
         water_delivered: '',
@@ -206,6 +191,25 @@ const displayDeliveryRecords = computed(() => {
       } as any);
     }
   }
+
+  // 序号2开始：追加真实送水记录
+  data.push(...deliveryRecords.value.map((r) => ({ ...r })));
+
+  // 最后补充普通空行到9行
+  while (data.length < 9) {
+    const idx = data.length;
+    data.push({
+      id: `__empty__${idx}`,
+      customer: '',
+      date: '',
+      water_delivered: '',
+      buckets_returned: '',
+      owed_empty_buckets: '',
+      storage_amount: '',
+      remark: '',
+    } as any);
+  }
+
   return data;
 });
 
@@ -321,12 +325,9 @@ async function handleSaveRow(row: any) {
           remark: row.remark,
         });
         shouldFillEmptyRowDefaults.value = false;
-        const rIndex = tableData.findIndex((r: any) => r.id === row.id);
-        if (rIndex !== -1) {
-          tableData[rIndex] = { ...newRecord };
-        }
         deliveryRecords.value.push(newRecord);
-        await deliveryGridApi.setGridOptions({ data: tableData });
+        // 使用 displayDeliveryRecords 重新渲染表格，确保 isInitRow 空行始终固定在序号1
+        await deliveryGridApi.setGridOptions({ data: displayDeliveryRecords.value });
         editableRowIds.value.delete(row.id);
       } catch (error) {
         console.error('保存送水记录失败:', error);
