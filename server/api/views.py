@@ -731,23 +731,21 @@ class DeliveryRecordCreateView(APIView):
             
             # 注意：不再自动更新客户存水量，存水量只在编辑客户时修改
             
-            # 续存记录：累加消费总额
-            remark = data.get('remark', '')
-            if '续存' in remark:
-                vip_scheme = data.get('vip_scheme')
-                if vip_scheme and customer.brand and customer.brand.price_per_bucket:
-                    try:
-                        from decimal import Decimal
-                        buy_count = int(vip_scheme.split('_')[0])
-                        renewal_amount = Decimal(str(buy_count)) * Decimal(str(customer.brand.price_per_bucket))
-                        current_total = customer.total_consumption or Decimal('0')
-                        # 若消费总额为0且是VIP，先补算开户金额
-                        if current_total == 0 and customer.customer_type == 'vip' and customer.vip_scheme:
-                            opening_buy = int(customer.vip_scheme.split('_')[0])
-                            current_total = Decimal(str(opening_buy)) * Decimal(str(customer.brand.price_per_bucket))
-                        customer.total_consumption = current_total + renewal_amount
-                    except (ValueError, IndexError):
-                        pass
+            # 续存记录：累加消费总额（以 vip_scheme 存在为判断依据）
+            vip_scheme = data.get('vip_scheme')
+            if vip_scheme and customer.brand and customer.brand.price_per_bucket:
+                try:
+                    from decimal import Decimal
+                    buy_count = int(vip_scheme.split('_')[0])
+                    renewal_amount = Decimal(str(buy_count)) * Decimal(str(customer.brand.price_per_bucket))
+                    current_total = customer.total_consumption or Decimal('0')
+                    # 若消费总额为0且是VIP，先补算开户金额
+                    if current_total == 0 and customer.customer_type == 'vip' and customer.vip_scheme:
+                        opening_buy = int(customer.vip_scheme.split('_')[0])
+                        current_total = Decimal(str(opening_buy)) * Decimal(str(customer.brand.price_per_bucket))
+                    customer.total_consumption = current_total + renewal_amount
+                except (ValueError, IndexError):
+                    pass
             
             customer.save()
             

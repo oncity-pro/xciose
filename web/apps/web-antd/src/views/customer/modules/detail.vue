@@ -450,7 +450,8 @@ function isEditingRow(row: any) {
 }
 
 function isRenewalRow(row: any) {
-  return String(row.remark || '').includes('续存');
+  const remark = String(row.remark || '');
+  return remark.includes('续存') || /^订\d+赠\d+桶，共\d+桶/.test(remark);
 }
 
 // 把 edit-closed 事件绑定到 gridEvents 上，确保 VxeGrid 能正确接收
@@ -572,6 +573,21 @@ async function handleRenewalSubmit() {
       : (customer.value.storage_amount ?? 0);
     const newStorage = currentStorage + addStorage;
 
+    // 生成续存备注
+    let remarkText: string;
+    if (renewalVipScheme.value) {
+      const match = renewalVipScheme.value.match(/(\d+)_(\d+)/);
+      if (match) {
+        const buy = Number(match[1]);
+        const give = Number(match[2]);
+        remarkText = `订${buy}赠${give}桶，共${addStorage}桶，当前存水量为${newStorage}`;
+      } else {
+        remarkText = `续存${addStorage}桶，当前存水量为${newStorage}`;
+      }
+    } else {
+      remarkText = `续存${addStorage}桶，当前存水量为${newStorage}`;
+    }
+
     // 创建续存记录（送水量、回桶数、欠空桶均默认为0）
     await createDeliveryRecordApi({
       customer: String(customer.value.id),
@@ -580,7 +596,7 @@ async function handleRenewalSubmit() {
       buckets_returned: 0,
       owed_empty_buckets: 0,
       storage_amount: newStorage,
-      remark: `续存${addStorage}桶`,
+      remark: remarkText,
       vip_scheme: renewalVipScheme.value,
     });
 
