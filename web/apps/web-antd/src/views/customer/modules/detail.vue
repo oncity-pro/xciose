@@ -30,6 +30,9 @@ const depositPerBucket = ref<number>(30);
 // 记录已点击"新增"、允许编辑的行ID
 const editableRowIds = ref<Set<string | number>>(new Set());
 
+// 防止重复保存的锁
+const savingRowIds = ref<Set<string | number>>(new Set());
+
 // 控制是否自动填充第一行空行的默认值（只在初始加载时填充，保存后不再填充）
 const shouldFillEmptyRowDefaults = ref(true);
 
@@ -94,6 +97,11 @@ const deliveryGridOptions: VxeTableGridOptions<any> = {
   },
   columns: [
     {
+      type: 'seq',
+      title: '序号',
+      width: 60,
+    },
+    {
       field: 'date',
       title: '送水日期',
       width: 120,
@@ -150,25 +158,42 @@ const displayDeliveryRecords = computed(() => {
   const data = deliveryRecords.value.map((r) => ({ ...r }));
   while (data.length < 9) {
     const idx = data.length;
-    if (idx === deliveryRecords.value.length && customer.value && shouldFillEmptyRowDefaults.value) {
-      // 第一个空行：基于客户信息填充默认值（只在初始加载时）
-      const openDate = customer.value.open_date || customer.value.openDate || '';
-      const owedBuckets = customer.value.owed_empty_bucket ?? 0;
-      const storage = customer.value.storage_amount ?? 0;
-      const isVip = customer.value.customer_type === 'vip';
-      data.push({
-        id: `__empty__${idx}`,
-        isInitRow: true,
-        customer: '',
-        date: openDate,
-        water_delivered: owedBuckets,
-        buckets_returned: 0,
-        owed_empty_buckets: 0,
-        storage_amount: isVip ? storage - owedBuckets : 0,
-        remark: '',
-      } as any);
+    const hasNoRecords = deliveryRecords.value.length === 0;
+    if (idx === deliveryRecords.value.length && customer.value) {
+      // 第一行空行始终保留 isInitRow 标识，确保欠空桶按独立逻辑计算
+      if (shouldFillEmptyRowDefaults.value && hasNoRecords) {
+        // 没有任何送水记录时，填充客户默认值方便初始录入
+        const openDate = customer.value.open_date || customer.value.openDate || '';
+        const owedBuckets = customer.value.owed_empty_bucket ?? 0;
+        const storage = customer.value.storage_amount ?? 0;
+        const isVip = customer.value.customer_type === 'vip';
+        data.push({
+          id: `__empty__${idx}`,
+          isInitRow: true,
+          customer: '',
+          date: openDate,
+          water_delivered: owedBuckets,
+          buckets_returned: 0,
+          owed_empty_buckets: 0,
+          storage_amount: isVip ? storage - owedBuckets : 0,
+          remark: '',
+        } as any);
+      } else {
+        // 已有送水记录时，isInitRow 空行字段全部留空，避免被误认为自动创建的记录
+        data.push({
+          id: `__empty__${idx}`,
+          isInitRow: true,
+          customer: '',
+          date: '',
+          water_delivered: '',
+          buckets_returned: '',
+          owed_empty_buckets: '',
+          storage_amount: '',
+          remark: '',
+        } as any);
+      }
     } else {
-      // 后续空行：全部为空，由用户输入后计算
+      // 后续空行
       data.push({
         id: `__empty__${idx}`,
         customer: '',
@@ -239,95 +264,103 @@ async function handleEditClosed({ row, column, $table }: any) {
 }
 
 async function handleSaveRow(row: any) {
-  // 先关闭当前编辑单元格，确保数据已提交到 row
-  const grid = deliveryGridApi.grid;
-  const table = (grid as any).$table || grid;
-  if (table && typeof table.clearEdit === 'function') {
-    table.clearEdit();
-  }
-
-  const tableData = table && typeof table.getData === 'function' ? table.getData() : [];
-  const rowIndex = tableData.findIndex((r: any) => r.id === row.id);
-  const prevRow = rowIndex > 0 ? tableData[rowIndex - 1] : null;
-  const isFirstEmptyRow = row.isInitRow;
-  const isEmptyRow = String(row.id).startsWith('__empty__');
-
-  if (isEmptyRow) {
-    if (!row.date) {
-      editableRowIds.value.delete(row.id);
-      return;
-    }
-    const delivered = Number(row.water_delivered) || 0;
-    const returned = Number(row.buckets_returned) || 0;
-    // 第一行保持原逻辑，从第二行开始：当前行送水量 + 上一行欠桶数 - 当前行回桶数
-    let owed: number;
-    if (isFirstEmptyRow) {
-      owed = delivered - returned;
-    } else if (prevRow) {
-      const prevOwed = Number(prevRow.owed_empty_buckets) || 0;
-      owed = delivered + prevOwed - returned;
-    } else {
-      owed = delivered - returned;
-    }
-
-    const isVip = customer.value?.customer_type === 'vip';
-    let storage = 0;
-    if (isVip) {
-      if (isFirstEmptyRow) {
-        storage = (customer.value?.storage_amount ?? 0) - delivered;
-      } else if (prevRow) {
-        storage = (Number(prevRow.storage_amount) || 0) - delivered;
-      }
-    }
-
-    try {
-      const newRecord = await createDeliveryRecordApi({
-        customer: String(customer.value!.id),
-        date: row.date,
-        water_delivered: delivered,
-        buckets_returned: returned,
-        owed_empty_buckets: owed,
-        storage_amount: storage,
-        remark: row.remark,
-      });
-      shouldFillEmptyRowDefaults.value = false;
-      const rIndex = tableData.findIndex((r: any) => r.id === row.id);
-      if (rIndex !== -1) {
-        tableData[rIndex] = { ...newRecord };
-      }
-      deliveryRecords.value.push(newRecord);
-      await deliveryGridApi.setGridOptions({ data: tableData });
-      editableRowIds.value.delete(row.id);
-    } catch (error) {
-      console.error('保存送水记录失败:', error);
-    }
-    return;
-  }
-
-  // 真实数据行
-  if (!row.id) return;
+  // 防止重复提交
+  if (savingRowIds.value.has(row.id)) return;
+  savingRowIds.value.add(row.id);
 
   try {
-    await updateDeliveryRecordApi(row.id, {
-      date: row.date,
-      water_delivered: row.water_delivered,
-      buckets_returned: row.buckets_returned,
-      owed_empty_buckets: row.owed_empty_buckets,
-      storage_amount: row.storage_amount,
-      remark: row.remark,
-    });
-    const record = deliveryRecords.value.find((r) => r.id === row.id);
-    if (record) {
-      record.date = row.date;
-      record.water_delivered = row.water_delivered;
-      record.buckets_returned = row.buckets_returned;
-      record.owed_empty_buckets = row.owed_empty_buckets;
-      record.storage_amount = row.storage_amount;
-      record.remark = row.remark;
+    // 先关闭当前编辑单元格，确保数据已提交到 row
+    const grid = deliveryGridApi.grid;
+    const table = (grid as any).$table || grid;
+    if (table && typeof table.clearEdit === 'function') {
+      table.clearEdit();
     }
-    editableRowIds.value.delete(row.id);
-  } catch (error) {
-    console.error('更新送水记录失败:', error);
+
+    const tableData = table && typeof table.getData === 'function' ? table.getData() : [];
+    const rowIndex = tableData.findIndex((r: any) => r.id === row.id);
+    const prevRow = rowIndex > 0 ? tableData[rowIndex - 1] : null;
+    const isFirstEmptyRow = row.isInitRow;
+    const isEmptyRow = String(row.id).startsWith('__empty__');
+
+    if (isEmptyRow) {
+      if (!row.date) {
+        editableRowIds.value.delete(row.id);
+        return;
+      }
+      const delivered = Number(row.water_delivered) || 0;
+      const returned = Number(row.buckets_returned) || 0;
+      // 第一行保持原逻辑，从第二行开始：当前行送水量 + 上一行欠桶数 - 当前行回桶数
+      let owed: number;
+      if (isFirstEmptyRow) {
+        owed = delivered - returned;
+      } else if (prevRow) {
+        const prevOwed = Number(prevRow.owed_empty_buckets) || 0;
+        owed = delivered + prevOwed - returned;
+      } else {
+        owed = delivered - returned;
+      }
+
+      const isVip = customer.value?.customer_type === 'vip';
+      let storage = 0;
+      if (isVip) {
+        if (isFirstEmptyRow) {
+          storage = (customer.value?.storage_amount ?? 0) - delivered;
+        } else if (prevRow) {
+          storage = (Number(prevRow.storage_amount) || 0) - delivered;
+        }
+      }
+
+      try {
+        const newRecord = await createDeliveryRecordApi({
+          customer: String(customer.value!.id),
+          date: row.date,
+          water_delivered: delivered,
+          buckets_returned: returned,
+          owed_empty_buckets: owed,
+          storage_amount: storage,
+          remark: row.remark,
+        });
+        shouldFillEmptyRowDefaults.value = false;
+        const rIndex = tableData.findIndex((r: any) => r.id === row.id);
+        if (rIndex !== -1) {
+          tableData[rIndex] = { ...newRecord };
+        }
+        deliveryRecords.value.push(newRecord);
+        await deliveryGridApi.setGridOptions({ data: tableData });
+        editableRowIds.value.delete(row.id);
+      } catch (error) {
+        console.error('保存送水记录失败:', error);
+      }
+      return;
+    }
+
+    // 真实数据行
+    if (!row.id) return;
+
+    try {
+      await updateDeliveryRecordApi(row.id, {
+        date: row.date,
+        water_delivered: row.water_delivered,
+        buckets_returned: row.buckets_returned,
+        owed_empty_buckets: row.owed_empty_buckets,
+        storage_amount: row.storage_amount,
+        remark: row.remark,
+      });
+      const record = deliveryRecords.value.find((r) => r.id === row.id);
+      if (record) {
+        record.date = row.date;
+        record.water_delivered = row.water_delivered;
+        record.buckets_returned = row.buckets_returned;
+        record.owed_empty_buckets = row.owed_empty_buckets;
+        record.storage_amount = row.storage_amount;
+        record.remark = row.remark;
+      }
+      editableRowIds.value.delete(row.id);
+    } catch (error) {
+      console.error('更新送水记录失败:', error);
+    }
+  } finally {
+    savingRowIds.value.delete(row.id);
   }
 }
 
