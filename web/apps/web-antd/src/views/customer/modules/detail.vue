@@ -213,7 +213,15 @@ async function handleEditClosed({ row, column, $table }: any) {
   if (field === 'water_delivered' || field === 'buckets_returned') {
     const delivered = Number(row.water_delivered) || 0;
     const returned = Number(row.buckets_returned) || 0;
-    row.owed_empty_buckets = delivered - returned;
+    // 第一行保持原逻辑，从第二行开始：当前行送水量 + 上一行欠桶数 - 当前行回桶数
+    if (isFirstEmptyRow) {
+      row.owed_empty_buckets = delivered - returned;
+    } else if (prevRow) {
+      const prevOwed = Number(prevRow.owed_empty_buckets) || 0;
+      row.owed_empty_buckets = delivered + prevOwed - returned;
+    } else {
+      row.owed_empty_buckets = delivered - returned;
+    }
 
     const isVip = customer.value?.customer_type === 'vip';
     if (isVip) {
@@ -251,7 +259,16 @@ async function handleSaveRow(row: any) {
     }
     const delivered = Number(row.water_delivered) || 0;
     const returned = Number(row.buckets_returned) || 0;
-    const owed = delivered - returned;
+    // 第一行保持原逻辑，从第二行开始：当前行送水量 + 上一行欠桶数 - 当前行回桶数
+    let owed: number;
+    if (isFirstEmptyRow) {
+      owed = delivered - returned;
+    } else if (prevRow) {
+      const prevOwed = Number(prevRow.owed_empty_buckets) || 0;
+      owed = delivered + prevOwed - returned;
+    } else {
+      owed = delivered - returned;
+    }
 
     const isVip = customer.value?.customer_type === 'vip';
     let storage = 0;
