@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import type { Customer } from '#/api/customer';
 
-import { computed, onBeforeUnmount, ref } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 
 import { useVbenModal } from '@vben/common-ui';
 
@@ -26,6 +26,19 @@ const props = defineProps<{
 }>();
 
 const customer = ref<Customer | null>(props.customerData ? { ...props.customerData } : null);
+
+// 监听 props.customerData 变化，确保弹窗打开时数据及时同步
+watch(
+  () => props.customerData,
+  (newVal) => {
+    if (newVal) {
+      customer.value = { ...newVal };
+      // 客户数据就绪后再加载送水记录
+      loadDeliveryRecords();
+    }
+  },
+  { immediate: true },
+);
 const depositPerBucket = ref<number>(30);
 
 // 押金配置加载标记（避免重复请求）
@@ -183,8 +196,8 @@ const displayDeliveryRecords = computed(() => {
   const realRecords = deliveryRecords.value.filter((r: any) => !r.isInitRow);
   // 按创建时间升序排序，先创建的在前面
   realRecords.sort((a, b) => {
-    const timeA = a.created_at || a.createdAt || '';
-    const timeB = b.created_at || b.createdAt || '';
+    const timeA = a.created_at || '';
+    const timeB = b.created_at || '';
     return String(timeA).localeCompare(String(timeB));
   });
   data.push(...realRecords.map((r) => ({ ...r })));
@@ -215,8 +228,8 @@ async function loadDeliveryRecords() {
     const data = await getDeliveryRecordListApi(customer.value.id);
     // 按创建时间升序排序，确保顺序固定（不受送水日期修改影响）
     deliveryRecords.value = data.sort((a, b) => {
-      const timeA = a.created_at || a.createdAt || '';
-      const timeB = b.created_at || b.createdAt || '';
+      const timeA = a.created_at || '';
+      const timeB = b.created_at || '';
       return String(timeA).localeCompare(String(timeB));
     });
     await deliveryGridApi.setGridOptions({
@@ -396,24 +409,6 @@ deliveryGridApi.setState({
   },
 });
 
-const [VbenModal, modalApi] = useVbenModal({
-  async onOpenChange(isOpen: boolean) {
-    if (isOpen) {
-      modalApi.setState({ title: '客户详情' });
-      if (!depositConfigLoaded.value) {
-        try {
-          const config = await getBucketDepositConfigApi();
-          depositPerBucket.value = config.amount_per_bucket;
-          depositConfigLoaded.value = true;
-        } catch (error) {
-          console.error('加载空桶押金配置失败:', error);
-        }
-      }
-      await loadDeliveryRecords();
-    }
-  },
-});
-
 function handleDeleteRow(row: any) {
   // 初始行禁止删除
   if (row.isInitRow) {
@@ -459,6 +454,24 @@ function handleDeleteRow(row: any) {
 
 onBeforeUnmount(() => {
   editableRowIds.value.clear();
+});
+
+const [VbenModal, modalApi] = useVbenModal({
+  onOpenChange(isOpen: boolean) {
+    if (isOpen) {
+      modalApi.setState({ title: '客户详情' });
+      if (!depositConfigLoaded.value) {
+        getBucketDepositConfigApi()
+          .then((config) => {
+            depositPerBucket.value = config.amount_per_bucket;
+            depositConfigLoaded.value = true;
+          })
+          .catch((error) => {
+            console.error('加载空桶押金配置失败:', error);
+          });
+      }
+    }
+  },
 });
 
 function getCustomerTypeColor(type?: string) {
