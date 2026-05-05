@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import type { Customer } from '#/api/customer';
 
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, ref } from 'vue';
 
 import { useVbenModal } from '@vben/common-ui';
 
