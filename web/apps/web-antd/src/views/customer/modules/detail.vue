@@ -23,7 +23,7 @@ import {
 import dayjs from 'dayjs';
 
 import { getBucketDepositConfigApi } from '#/api/settings';
-import { getCustomerDetailApi } from '#/api/customer';
+import { getCustomerDetailApi, updateCustomerApi } from '#/api/customer';
 import {
   createDeliveryRecordApi,
   deleteDeliveryRecordApi,
@@ -581,11 +581,24 @@ async function handleRenewalSubmit() {
       owed_empty_buckets: 0,
       storage_amount: newStorage,
       remark: `续存${addStorage}桶`,
+      vip_scheme: renewalVipScheme.value,
     });
 
-    message.success('续存成功');
+    // 若客户类型非VIP，自动升级为VIP
+    if (customer.value.customer_type !== 'vip') {
+      await updateCustomerApi(String(customer.value.id), {
+        customer_type: 'vip',
+        owed_empty_bucket: customer.value.owed_empty_bucket ?? 0,
+      });
+      message.success('续存成功，客户类型已自动升级为套餐客户');
+    } else {
+      message.success('续存成功');
+    }
+
     renewalModalVisible.value = false;
     await loadDeliveryRecords();
+    // 刷新客户数据以更新页面显示
+    await refreshCustomerData();
   } catch (error: any) {
     console.error('续存失败:', error);
     const responseData = error?.response?.data ?? {};

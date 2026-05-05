@@ -110,10 +110,19 @@ class CustomerSerializer(serializers.ModelSerializer):
         data['owedEmptyBucket'] = instance.owed_empty_bucket
         # 添加驼峰命名的total_water_usage字段
         data['totalWaterUsage'] = instance.total_water_usage
-        # 消费总额：优先取手动维护值，若为0且品牌有单价则自动计算
+        # 消费总额计算
         total_consumption = float(instance.total_consumption or 0)
         if total_consumption == 0 and instance.brand and instance.brand.price_per_bucket:
-            total_consumption = float(instance.total_water_usage or 0) * float(instance.brand.price_per_bucket)
+            if instance.customer_type == 'vip' and instance.vip_scheme:
+                # 套餐客户：按优惠方案购买数量 × 品牌单价计算
+                try:
+                    buy_count = int(instance.vip_scheme.split('_')[0])
+                    total_consumption = buy_count * float(instance.brand.price_per_bucket)
+                except (ValueError, IndexError):
+                    total_consumption = float(instance.total_water_usage or 0) * float(instance.brand.price_per_bucket)
+            else:
+                # 普通客户：按总用水量 × 品牌单价计算
+                total_consumption = float(instance.total_water_usage or 0) * float(instance.brand.price_per_bucket)
         data['totalConsumption'] = round(total_consumption, 2)
         # 添加驼峰命名的桶装水价格字段
         data['pricePerBucket'] = float(instance.price_per_bucket or 0)
@@ -133,10 +142,20 @@ class CustomerSerializer(serializers.ModelSerializer):
         return super().update(instance, validated_data)
 
     def create(self, validated_data):
-        """创建客户时，若标记为已注销则自动设置注销日期"""
+        """创建客户时，若标记为已注销则自动设置注销日期；套餐客户自动计算消费总额"""
         from django.utils import timezone
         if validated_data.get('customer_type') == 'closed' and not validated_data.get('close_date'):
             validated_data['close_date'] = timezone.now().date()
+        # 套餐客户自动计算消费总额 = 优惠方案购买数量 × 品牌单价
+        if validated_data.get('customer_type') == 'vip':
+            vip_scheme = validated_data.get('vip_scheme')
+            brand = validated_data.get('brand')
+            if vip_scheme and brand and brand.price_per_bucket:
+                try:
+                    buy_count = int(vip_scheme.split('_')[0])
+                    validated_data['total_consumption'] = buy_count * float(brand.price_per_bucket)
+                except (ValueError, IndexError):
+                    pass
         return super().create(validated_data)
 
     def get_brand_name(self, obj):

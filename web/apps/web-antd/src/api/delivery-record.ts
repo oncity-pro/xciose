@@ -25,6 +25,7 @@ export interface DeliveryRecordCreateData {
   owed_empty_buckets?: number;
   storage_amount?: number;
   remark?: string;
+  vip_scheme?: string;
 }
 
 /**
