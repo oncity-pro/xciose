@@ -359,7 +359,7 @@ const gridOptions: VxeTableGridOptions<Customer> = {
           return '';
         }
         if (/^\d+$/.test(cellValue)) {
-          return String(Number(cellValue));
+          return String(Number(cellValue)).padStart(3, '0');
         }
         return cellValue;
       },
@@ -483,7 +483,7 @@ function navTo(nav: WorkbenchProjectItem | WorkbenchQuickNavItem) {
                     >
                       <div class="flex items-center gap-3 text-sm whitespace-nowrap">
                         <span class="w-10 shrink-0 font-medium">
-                          {{ /^\d+$/.test(customer.id) ? String(Number(customer.id)) : customer.id }}
+                          {{ /^\d+$/.test(customer.id) ? String(Number(customer.id)).padStart(3, '0') : customer.id }}
                         </span>
                         <span class="text-gray-700 dark:text-gray-200">
                           {{ customer.name }}
@@ -528,7 +528,7 @@ function navTo(nav: WorkbenchProjectItem | WorkbenchQuickNavItem) {
                     >
                       <div class="flex items-center gap-3 text-sm whitespace-nowrap">
                         <span class="w-10 shrink-0 font-medium">
-                          {{ /^\d+$/.test(customer.id) ? String(Number(customer.id)) : customer.id }}
+                          {{ /^\d+$/.test(customer.id) ? String(Number(customer.id)).padStart(3, '0') : customer.id }}
                         </span>
                         <span class="text-gray-700 dark:text-gray-200">
                           {{ customer.name }}
@@ -548,6 +548,7 @@ function navTo(nav: WorkbenchProjectItem | WorkbenchQuickNavItem) {
                 </Button>
               </div>
               <div class="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
+                <span>总计：{{ totalCount }}位</span>
                 <span>进行中：{{ inProgressCount }}位</span>
                 <span>已完成：{{ completedCount }}位</span>
               </div>

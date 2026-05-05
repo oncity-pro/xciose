@@ -112,7 +112,7 @@ const [Form, formApi] = useVbenForm({
           const val = e?.target?.value || '';
           const num = val.replace(/\D/g, '');
           if (num) {
-            const cleanId = String(Number(num));
+            const cleanId = String(Number(num)).padStart(3, '0');
             formApi.setValues({ id: cleanId });
             debouncedCheckId(cleanId);
           }
@@ -575,7 +575,10 @@ const [Modal, modalApi] = useVbenModal({
         // 自动获取并填入下一个可用客户编号
         try {
           const nextId = await getNextCustomerIdApi();
-          await formApi.setValues({ id: nextId });
+          const formattedNextId = /^\d+$/.test(String(nextId))
+            ? String(Number(nextId)).padStart(3, '0')
+            : String(nextId);
+          await formApi.setValues({ id: formattedNextId });
         } catch (error) {
           console.error('获取下一个客户编号失败:', error);
         }

@@ -245,9 +245,9 @@ const gridOptions: VxeTableGridOptions<Customer> = {
       title: '客户编号',
       width: 100,
       formatter: ({ cellValue }: { cellValue: string }) => {
-        // 纯数字编号去掉前导零显示
+        // 纯数字编号补前导零到3位显示
         if (/^\d+$/.test(cellValue)) {
-          return String(Number(cellValue));
+          return String(Number(cellValue)).padStart(3, '0');
         }
         return cellValue;
       },

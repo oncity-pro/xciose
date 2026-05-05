@@ -179,7 +179,7 @@ function handleKeydown(e: KeyboardEvent) {
         <Row :gutter="[16, 16]">
           <Col :span="8">
             <div class="text-sm text-gray-500">客户编号</div>
-            <div class="text-lg font-semibold">{{ /^\d+$/.test(currentCustomer.id) ? String(Number(currentCustomer.id)) : currentCustomer.id }}</div>
+            <div class="text-lg font-semibold">{{ /^\d+$/.test(currentCustomer.id) ? String(Number(currentCustomer.id)).padStart(3, '0') : currentCustomer.id }}</div>
           </Col>
           <Col :span="16">
             <div class="text-sm text-gray-500">姓名地址</div>
