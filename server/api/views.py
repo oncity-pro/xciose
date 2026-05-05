@@ -720,17 +720,13 @@ class DeliveryRecordCreateView(APIView):
             # 更新总用水量
             customer.total_water_usage = (customer.total_water_usage or 0) + water_delivered
             
-            # 更新欠空桶 = 原欠空桶 + 送水量 - 回桶数
-            customer.owed_empty_bucket = (customer.owed_empty_bucket or 0) + water_delivered - buckets_returned
+            # 注意：不再自动更新客户欠空桶，欠空桶只在编辑客户时修改
             
             # 更新最后送水日期
             from django.utils import timezone
             customer.last_delivery_date = data.get('date') or timezone.now().date()
             
-            # 更新存水量（如果传入）
-            storage_amount = data.get('storage_amount')
-            if storage_amount is not None:
-                customer.storage_amount = storage_amount
+            # 注意：不再自动更新客户存水量，存水量只在编辑客户时修改
             
             customer.save()
             
@@ -783,11 +779,9 @@ class DeliveryRecordUpdateView(APIView):
             if delta_water != 0:
                 customer.total_water_usage = (customer.total_water_usage or 0) + delta_water
             
-            if delta_water != 0 or delta_buckets != 0:
-                customer.owed_empty_bucket = (customer.owed_empty_bucket or 0) + delta_water - delta_buckets
+            # 注意：不再自动更新客户欠空桶，欠空桶只在编辑客户时修改
             
-            if new_storage != old_storage:
-                customer.storage_amount = new_storage
+            # 注意：不再自动更新客户存水量，存水量只在编辑客户时修改
             
             # 如果日期发生变化，更新最后送水日期为最新记录的日期
             if updated_record.date != old_date:
@@ -830,7 +824,8 @@ class DeliveryRecordDeleteView(APIView):
         
         # 回滚客户累计数据
         customer.total_water_usage = (customer.total_water_usage or 0) - water_delivered
-        customer.owed_empty_bucket = (customer.owed_empty_bucket or 0) - water_delivered + buckets_returned
+        
+        # 注意：不再自动回滚客户欠空桶，欠空桶只在编辑客户时修改
         
         # 删除记录
         record.delete()
@@ -839,10 +834,10 @@ class DeliveryRecordDeleteView(APIView):
         latest_record = DeliveryRecord.objects.filter(customer=customer).order_by('-date', '-id').first()
         if latest_record:
             customer.last_delivery_date = latest_record.date
-            customer.storage_amount = latest_record.storage_amount or 0
+            # 注意：不再自动更新客户存水量，存水量只在编辑客户时修改
         else:
             customer.last_delivery_date = None
-            customer.storage_amount = 0
+            # 注意：不再自动重置客户存水量
         
         customer.save()
         

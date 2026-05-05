@@ -8,6 +8,7 @@ import { useVbenModal } from '@vben/common-ui';
 import { Button, Card, Descriptions, DescriptionsItem, Modal, Tag } from 'ant-design-vue';
 
 import { getBucketDepositConfigApi } from '#/api/settings';
+import { getCustomerDetailApi } from '#/api/customer';
 import {
   createDeliveryRecordApi,
   deleteDeliveryRecordApi,
@@ -24,7 +25,7 @@ const props = defineProps<{
   brandName?: string;
 }>();
 
-const customer = computed(() => props.customerData);
+const customer = ref<Customer | null>(props.customerData ? { ...props.customerData } : null);
 const depositPerBucket = ref<number>(30);
 
 // 押金配置加载标记（避免重复请求）
@@ -178,8 +179,14 @@ const displayDeliveryRecords = computed(() => {
     } as any);
   }
 
-  // 序号2开始：追加真实送水记录（排除初始行）
+  // 序号2开始：追加真实送水记录（排除初始行），按创建时间排序确保顺序固定
   const realRecords = deliveryRecords.value.filter((r: any) => !r.isInitRow);
+  // 按创建时间升序排序，先创建的在前面
+  realRecords.sort((a, b) => {
+    const timeA = a.created_at || a.createdAt || '';
+    const timeB = b.created_at || b.createdAt || '';
+    return String(timeA).localeCompare(String(timeB));
+  });
   data.push(...realRecords.map((r) => ({ ...r })));
 
   // 最后补充普通空行到9行
@@ -206,7 +213,12 @@ async function loadDeliveryRecords() {
   deliveryLoading.value = true;
   try {
     const data = await getDeliveryRecordListApi(customer.value.id);
-    deliveryRecords.value = data;
+    // 按创建时间升序排序，确保顺序固定（不受送水日期修改影响）
+    deliveryRecords.value = data.sort((a, b) => {
+      const timeA = a.created_at || a.createdAt || '';
+      const timeB = b.created_at || b.createdAt || '';
+      return String(timeA).localeCompare(String(timeB));
+    });
     await deliveryGridApi.setGridOptions({
       data: displayDeliveryRecords.value,
     });
@@ -214,6 +226,17 @@ async function loadDeliveryRecords() {
     console.error('加载送水记录失败:', error);
   } finally {
     deliveryLoading.value = false;
+  }
+}
+
+// 刷新客户数据（用于保存/删除送水记录后更新客户信息）
+async function refreshCustomerData() {
+  if (!customer.value?.id) return;
+  try {
+    const updatedCustomer = await getCustomerDetailApi(customer.value.id);
+    customer.value = updatedCustomer;
+  } catch (error) {
+    console.error('刷新客户数据失败:', error);
   }
 }
 
@@ -321,10 +344,9 @@ async function handleSaveRow(row: any) {
           remark: row.remark,
         });
         deliveryRecords.value.push(newRecord);
-        // 使用 displayDeliveryRecords 重新渲染表格，确保 isInitRow 空行始终固定在序号1
-        await deliveryGridApi.setGridOptions({ data: displayDeliveryRecords.value });
         editableRowIds.value.delete(row.id);
-        await loadDeliveryRecords();
+        // 并行刷新客户数据和送水记录，减少闪烁
+        await Promise.all([refreshCustomerData(), loadDeliveryRecords()]);
       } catch (error) {
         console.error('保存送水记录失败:', error);
       }
@@ -353,7 +375,8 @@ async function handleSaveRow(row: any) {
         record.remark = row.remark;
       }
       editableRowIds.value.delete(row.id);
-      await loadDeliveryRecords();
+      // 并行刷新客户数据和送水记录，减少闪烁
+      await Promise.all([refreshCustomerData(), loadDeliveryRecords()]);
     } catch (error) {
       console.error('更新送水记录失败:', error);
     }
@@ -425,7 +448,8 @@ function handleDeleteRow(row: any) {
         editableRowIds.value = new Set(
           [...editableRowIds.value].filter((id) => !String(id).startsWith('__empty__')),
         );
-        await loadDeliveryRecords();
+        // 并行刷新客户数据和送水记录，减少闪烁
+        await Promise.all([refreshCustomerData(), loadDeliveryRecords()]);
       } catch (error) {
         console.error('删除送水记录失败:', error);
       }
