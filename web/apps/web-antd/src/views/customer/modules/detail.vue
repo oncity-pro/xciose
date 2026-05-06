@@ -322,29 +322,43 @@ function calcOwedAndStorage(
 }
 
 async function handleEditClosed({ row, column, $table }: any) {
-  // 只对空行做实时预览计算，真实数据行避免污染原始数据
-  if (!String(row.id).startsWith('__empty__')) return;
+  // 只对包含日期的行做实时预览计算（排除初始行）
+  if (row.isInitRow || !row.date) return;
 
   const field = column?.field || column?.property;
   const tableData = $table ? $table.getData() : [];
   const rowIndex = tableData.findIndex((r: any) => r.id === row.id);
-  const prevRow = rowIndex > 0 ? tableData[rowIndex - 1] : null;
-  const isFirstEmptyRow = row.isInitRow;
-
-  // 如果编辑的是送水量或回桶数列，自动计算欠桶数和存水量
+  
+  // 如果编辑的是送水量或回桶数列，自动计算当前行及后续所有行的欠桶数和存水量
   if (field === 'water_delivered' || field === 'buckets_returned') {
-    const delivered = Number(row.water_delivered) || 0;
-    const returned = Number(row.buckets_returned) || 0;
-    const { owed, storage } = calcOwedAndStorage(
-      delivered,
-      returned,
-      prevRow,
-      isFirstEmptyRow,
-      customer.value?.customer_type,
-      customer.value?.storage_amount ?? 0,
-    );
-    row.owed_empty_buckets = owed;
-    row.storage_amount = storage;
+    // 从当前行开始，逐行向下计算
+    for (let i = rowIndex; i < tableData.length; i++) {
+      const currentRow = tableData[i];
+      // 跳过没有日期的行（空行）
+      if (!currentRow.date) break;
+      
+      const prevRow = i > 0 ? tableData[i - 1] : null;
+      const isFirstDataRow = i === 0 || (prevRow && !prevRow.date);
+      
+      const delivered = Number(currentRow.water_delivered) || 0;
+      const returned = Number(currentRow.buckets_returned) || 0;
+      const { owed, storage } = calcOwedAndStorage(
+        delivered,
+        returned,
+        prevRow,
+        isFirstDataRow,
+        customer.value?.customer_type,
+        customer.value?.storage_amount ?? 0,
+      );
+      
+      currentRow.owed_empty_buckets = owed;
+      currentRow.storage_amount = storage;
+    }
+    
+    // 刷新表格显示
+    if ($table && typeof $table.updateData === 'function') {
+      $table.updateData();
+    }
   }
 }
 
