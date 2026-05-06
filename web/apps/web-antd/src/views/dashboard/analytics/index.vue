@@ -73,11 +73,11 @@ onMounted(() => {
 
 const chartTabs: TabOption[] = [
   {
-    label: '流量趋势',
+    label: '本月数据',
     value: 'trends',
   },
   {
-    label: '月访问量',
+    label: '本年数据',
     value: 'visits',
   },
 ];
@@ -137,7 +137,7 @@ const chartTabs: TabOption[] = [
           </template>
         </AnalysisChartsTabs>
       </div>
-      <AnalysisChartCard class="mt-5 md:mt-0 md:w-1/3" title="访问来源">
+      <AnalysisChartCard class="mt-5 md:mt-0 md:w-1/3" title="品牌占比">
         <AnalyticsVisitsSource />
       </AnalysisChartCard>
     </div>
