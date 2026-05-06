@@ -8,6 +8,7 @@ import {
   AnalysisChartCard,
   AnalysisChartsTabs,
   AnalysisOverview,
+  VbenCountToAnimator,
 } from '@vben/common-ui';
 import {
   SvgBellIcon,
@@ -95,7 +96,7 @@ const chartTabs: TabOption[] = [
           <div class="text-lg font-semibold leading-none tracking-tight">{{ item.title }}</div>
         </div>
         <div class="flex items-center justify-between px-6 py-4">
-          <div class="text-lg font-bold">{{ item.value.toLocaleString() }}</div>
+          <VbenCountToAnimator :end-val="item.value" :start-val="1" class="text-lg font-bold" prefix="" />
           <svg
             xmlns="http://www.w3.org/2000/svg"
             width="28"
@@ -121,27 +122,31 @@ const chartTabs: TabOption[] = [
         <!-- CardFooter -->
         <div class="flex items-center justify-between px-6 py-4">
           <span class="text-xs">{{ item.totalTitle }}</span>
-          <div class="text-base font-semibold">{{ item.totalValue.toLocaleString() }}</div>
+          <VbenCountToAnimator :end-val="item.totalValue" :start-val="1" class="text-base font-semibold" prefix="" />
         </div>
       </div>
     </div>
-    <AnalysisChartsTabs :tabs="chartTabs" class="mt-5">
-      <template #trends>
-        <AnalyticsTrends />
-      </template>
-      <template #visits>
-        <AnalyticsVisits />
-      </template>
-    </AnalysisChartsTabs>
-
     <div class="mt-5 w-full md:flex">
-      <AnalysisChartCard class="mt-5 md:mt-0 md:mr-4 md:w-1/3" title="访问数量">
-        <AnalyticsVisitsData />
-      </AnalysisChartCard>
-      <AnalysisChartCard class="mt-5 md:mt-0 md:mr-4 md:w-1/3" title="访问来源">
+      <div class="md:mr-4 md:w-2/3">
+        <AnalysisChartsTabs :tabs="chartTabs">
+          <template #trends>
+            <AnalyticsTrends />
+          </template>
+          <template #visits>
+            <AnalyticsVisits />
+          </template>
+        </AnalysisChartsTabs>
+      </div>
+      <AnalysisChartCard class="mt-5 md:mt-0 md:w-1/3" title="访问来源">
         <AnalyticsVisitsSource />
       </AnalysisChartCard>
-      <AnalysisChartCard class="mt-5 md:mt-0 md:w-1/3" title="访问来源">
+    </div>
+
+    <div class="mt-5 w-full md:flex">
+      <AnalysisChartCard class="mt-5 md:mt-0 md:mr-4 md:w-1/2" title="访问数量">
+        <AnalyticsVisitsData />
+      </AnalysisChartCard>
+      <AnalysisChartCard class="mt-5 md:mt-0 md:w-1/2" title="访问来源">
         <AnalyticsVisitsSales />
       </AnalysisChartCard>
     </div>

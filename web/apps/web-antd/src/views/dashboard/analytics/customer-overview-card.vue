@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import { ArrowDown, ArrowUp } from 'lucide-vue-next';
+import { VbenCountToAnimator } from '@vben/common-ui';
 
 interface Props {
   total: number;
@@ -23,7 +24,7 @@ const props = withDefaults(defineProps<Props>(), {
 
     <!-- CardContent -->
     <div class="flex items-center justify-between px-6 py-4">
-      <div class="text-lg font-bold">{{ props.total.toLocaleString() }}</div>
+      <VbenCountToAnimator :end-val="props.total" :start-val="1" class="text-lg font-bold" prefix="" suffix="位" />
       <svg
         xmlns="http://www.w3.org/2000/svg"
         width="28"
@@ -50,12 +51,12 @@ const props = withDefaults(defineProps<Props>(), {
     <div class="flex items-center justify-between px-6 py-4">
       <div class="flex items-center gap-2">
         <span class="text-xs">本月新增：</span>
-        <div class="text-base font-semibold">{{ props.newThisMonth.toLocaleString() }}</div>
+        <VbenCountToAnimator :end-val="props.newThisMonth" :start-val="1" class="text-base font-semibold" prefix="" suffix="位" />
         <ArrowUp class="size-3.5 text-green-500" />
       </div>
       <div class="flex items-center gap-2">
         <span class="text-xs">本月注销：</span>
-        <div class="text-base font-semibold">{{ props.closedThisMonth.toLocaleString() }}</div>
+        <VbenCountToAnimator :end-val="props.closedThisMonth" :start-val="1" class="text-base font-semibold" prefix="" suffix="位" />
         <ArrowDown class="size-3.5 text-red-500" />
       </div>
     </div>
