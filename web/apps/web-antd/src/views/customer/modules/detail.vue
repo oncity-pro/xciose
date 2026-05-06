@@ -144,7 +144,7 @@ const deliveryGridOptions: VxeTableGridOptions<any> = {
       editRender: { name: 'input' },
       formatter: ({ cellValue, row }: any) => {
         if (!row.date) return '';
-        if (isRenewalRow(row)) return '';
+        if (isRenewalRow(row)) return '0';
         return cellValue;
       },
     },
@@ -155,7 +155,7 @@ const deliveryGridOptions: VxeTableGridOptions<any> = {
       editRender: { name: 'input' },
       formatter: ({ cellValue, row }: any) => {
         if (!row.date) return '';
-        if (isRenewalRow(row)) return '';
+        if (isRenewalRow(row)) return '0';
         return cellValue;
       },
     },
@@ -165,7 +165,13 @@ const deliveryGridOptions: VxeTableGridOptions<any> = {
       width: 100,
       formatter: ({ cellValue, row }: any) => {
         if (!row.date) return '';
-        if (isRenewalRow(row)) return '';
+        if (isRenewalRow(row)) {
+          // 获取上一行的欠空桶数据
+          const tableData = deliveryGridApi.grid?.getData() || [];
+          const rowIndex = tableData.findIndex((r: any) => r.id === row.id);
+          const prevRow = rowIndex > 0 ? tableData[rowIndex - 1] : null;
+          return prevRow ? (prevRow.owed_empty_buckets ?? 0) : 0;
+        }
         return cellValue;
       },
     },
@@ -336,6 +342,16 @@ async function handleEditClosed({ row, column, $table }: any) {
       const currentRow = tableData[i];
       // 跳过没有日期的行（空行）
       if (!currentRow.date) break;
+      
+      // 如果是续存行，跳过计算，但需要更新其欠空桶为上一行的值
+      if (isRenewalRow(currentRow)) {
+        const prevRow = i > 0 ? tableData[i - 1] : null;
+        if (prevRow && prevRow.date) {
+          currentRow.owed_empty_buckets = prevRow.owed_empty_buckets ?? 0;
+          // 续存行的存水量保持原值不变
+        }
+        continue;
+      }
       
       const prevRow = i > 0 ? tableData[i - 1] : null;
       const isFirstDataRow = i === 0 || (prevRow && !prevRow.date);
@@ -577,7 +593,7 @@ async function handleRenewalSubmit() {
     const addStorage = renewalStorageAmount.value;
     const dateStr = renewalDate.value.format('YYYY-MM-DD');
 
-    // 从已有送水记录获取当前存水量，若无记录则取客户初始存水量
+    // 从已有送水记录获取当前存水量和欠空桶数，若无记录则取客户初始值
     const lastRecord =
       deliveryRecords.value.length > 0
         ? deliveryRecords.value[deliveryRecords.value.length - 1]
@@ -585,6 +601,9 @@ async function handleRenewalSubmit() {
     const currentStorage = lastRecord
       ? (lastRecord.storage_amount ?? 0)
       : (customer.value.storage_amount ?? 0);
+    const currentOwedEmptyBucket = lastRecord
+      ? (lastRecord.owed_empty_buckets ?? 0)
+      : 0;
     const newStorage = currentStorage + addStorage;
 
     // 生成续存备注
@@ -602,13 +621,13 @@ async function handleRenewalSubmit() {
       remarkText = `续存${addStorage}桶，当前存水量为${newStorage}`;
     }
 
-    // 创建续存记录（送水量、回桶数、欠空桶均默认为0）
+    // 创建续存记录（送水量、回桶数默认为0，欠空桶继承上一行数据）
     await createDeliveryRecordApi({
       customer: String(customer.value.id),
       date: dateStr,
       water_delivered: 0,
       buckets_returned: 0,
-      owed_empty_buckets: 0,
+      owed_empty_buckets: currentOwedEmptyBucket,
       storage_amount: newStorage,
       remark: remarkText,
       vip_scheme: renewalVipScheme.value,
