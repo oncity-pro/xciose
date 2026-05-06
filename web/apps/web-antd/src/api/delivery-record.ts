@@ -17,6 +17,18 @@ export interface DeliveryRecord {
   updated_at?: string;
 }
 
+export interface DeliveryBrandStat {
+  brand_id: number | null;
+  brand_name: string;
+  total_delivered: number;
+}
+
+export interface DeliveryStatsResult {
+  date: string;
+  brands: DeliveryBrandStat[];
+  total: number;
+}
+
 export interface DeliveryRecordCreateData {
   customer: string;
   date: string;
@@ -74,4 +86,18 @@ export async function updateDeliveryRecordApi(
  */
 export async function deleteDeliveryRecordApi(id: number): Promise<void> {
   await requestClient.delete<any>(`/v1/delivery-records/${id}/delete`);
+}
+
+/**
+ * 按日期汇总各品牌送水量
+ * @param date 日期，格式：YYYY-MM-DD
+ */
+export async function getDeliveryStatsApi(
+  date: string,
+): Promise<DeliveryStatsResult> {
+  const res = await requestClient.get<any>(
+    `/v1/delivery-records/stats`,
+    { params: { date } },
+  );
+  return res?.data ?? res;
 }

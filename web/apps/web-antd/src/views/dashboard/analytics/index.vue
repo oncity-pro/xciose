@@ -17,6 +17,7 @@ import {
 } from '@vben/icons';
 
 import { getCustomerStatsApi } from '#/api/customer';
+import { getDeliveryStatsApi } from '#/api/delivery-record';
 
 import AnalyticsTrends from './analytics-trends.vue';
 import AnalyticsVisitsData from './analytics-visits-data.vue';
@@ -32,6 +33,9 @@ const customerStats = ref({
   closedThisMonth: 0
 });
 
+// 今日送水量
+const todayWaterDelivered = ref(0);
+
 // 加载客户统计数据
 async function loadCustomerStats() {
   try {
@@ -42,14 +46,25 @@ async function loadCustomerStats() {
   }
 }
 
+// 加载今日送水量
+async function loadTodayWaterDelivered() {
+  try {
+    const today = new Date().toISOString().split('T')[0] || '';
+    const result = await getDeliveryStatsApi(today);
+    todayWaterDelivered.value = result.total || 0;
+  } catch (error) {
+    console.error('加载今日送水量失败:', error);
+  }
+}
+
 // 动态生成概览数据（不包含客户量，客户量使用自定义组件）
 const overviewItems = computed<AnalysisOverviewItem[]>(() => [
   {
     icon: SvgCakeIcon,
-    title: '访问量',
-    totalTitle: '总访问量',
-    totalValue: 500_000,
-    value: 20_000,
+    title: '今日送水量',
+    totalTitle: '今日总送水量',
+    totalValue: todayWaterDelivered.value,
+    value: todayWaterDelivered.value,
   },
   {
     icon: SvgDownloadIcon,
@@ -69,6 +84,7 @@ const overviewItems = computed<AnalysisOverviewItem[]>(() => [
 
 onMounted(() => {
   loadCustomerStats();
+  loadTodayWaterDelivered();
 });
 
 const chartTabs: TabOption[] = [
@@ -109,7 +125,7 @@ const chartTabs: TabOption[] = [
             stroke-linejoin="round"
             class="size-7 shrink-0"
           >
-            <path v-if="item.title === '访问量'" d="M3 3v18h18" />
+            <path v-if="item.title === '今日送水量'" d="M3 3v18h18" />
             <path v-else-if="item.title === '下载量'" d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
             <path v-else d="M12 2v20M2 12h20" />
           </svg>

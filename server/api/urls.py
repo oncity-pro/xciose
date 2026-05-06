@@ -1,8 +1,8 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
-    SampleListCreateView, 
-    SampleDetailView, 
+    SampleListCreateView,
+    SampleDetailView,
     HealthCheckView,
     WaterBrandListView,
     WaterBrandListCreateView,
@@ -17,6 +17,7 @@ from .views import (
     DeliveryRecordCreateView,
     DeliveryRecordUpdateView,
     DeliveryRecordDeleteView,
+    DeliveryRecordStatsView,
     BucketDepositConfigView,
     LoginView,
     LogoutView,
@@ -66,6 +67,7 @@ urlpatterns = [
         path('customers/<str:pk>', CustomerDetailView.as_view(), name='customer-detail'),
         path('customers/<str:customer_id>/delivery-records', DeliveryRecordListView.as_view(), name='delivery-record-list'),
         path('delivery-records', DeliveryRecordCreateView.as_view(), name='delivery-record-create'),
+        path('delivery-records/stats', DeliveryRecordStatsView.as_view(), name='delivery-record-stats'),
         path('delivery-records/<int:pk>', DeliveryRecordUpdateView.as_view(), name='delivery-record-update'),
         path('delivery-records/<int:pk>/delete', DeliveryRecordDeleteView.as_view(), name='delivery-record-delete'),
 

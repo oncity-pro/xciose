@@ -656,6 +656,16 @@ class MenuView(APIView):
                     "icon": "lucide:clipboard-list",
                     "order": 3
                 }
+            },
+            {
+                "name": "DeliveryStats",
+                "path": "/delivery-stats",
+                "component": "/delivery-stats/index",
+                "meta": {
+                    "title": "送水统计",
+                    "icon": "lucide:bar-chart-3",
+                    "order": 4
+                }
             }
         ]
         
@@ -666,6 +676,72 @@ class MenuView(APIView):
 
 
 # ==================== Delivery Record Views ====================
+
+class DeliveryRecordStatsView(APIView):
+    """
+    按日期汇总各品牌送水量统计视图
+    GET /api/v1/delivery-records/stats?date=2026-05-06
+    """
+    def get(self, request):
+        from django.db.models import Sum, F
+        from django.db.models.functions import Coalesce
+
+        date_str = request.query_params.get('date', None)
+        if not date_str:
+            return Response({
+                'code': 1,
+                'message': '请提供日期参数 date，格式：YYYY-MM-DD'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            from datetime import datetime
+            target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        except ValueError:
+            return Response({
+                'code': 1,
+                'message': '日期格式错误，请使用 YYYY-MM-DD 格式'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # 查询指定日期的送水记录，按品牌分组汇总
+        stats = DeliveryRecord.objects.filter(
+            date=target_date,
+            customer__brand__isnull=False
+        ).values(
+            brand_id=F('customer__brand'),
+            brand_name=F('customer__brand__name')
+        ).annotate(
+            total_delivered=Coalesce(Sum('water_delivered'), 0)
+        ).order_by('brand_name')
+
+        # 汇总无品牌客户的送水量
+        no_brand_total = DeliveryRecord.objects.filter(
+            date=target_date,
+            customer__brand__isnull=True
+        ).aggregate(
+            total=Coalesce(Sum('water_delivered'), 0)
+        )['total'] or 0
+
+        # 计算总计
+        grand_total = sum(item['total_delivered'] for item in stats) + no_brand_total
+
+        result = list(stats)
+        if no_brand_total > 0:
+            result.append({
+                'brand_id': None,
+                'brand_name': '未分配品牌',
+                'total_delivered': no_brand_total
+            })
+
+        return Response({
+            'code': 0,
+            'message': 'success',
+            'data': {
+                'date': date_str,
+                'brands': result,
+                'total': grand_total
+            }
+        })
+
 
 class DeliveryRecordListView(generics.ListAPIView):
     """
