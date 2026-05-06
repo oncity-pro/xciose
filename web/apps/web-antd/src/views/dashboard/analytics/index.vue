@@ -49,7 +49,12 @@ async function loadCustomerStats() {
 // 加载今日送水量
 async function loadTodayWaterDelivered() {
   try {
-    const today = new Date().toISOString().split('T')[0] || '';
+    // 使用本地时间避免 UTC 偏移导致日期不对
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    const today = `${y}-${m}-${d}`;
     const result = await getDeliveryStatsApi(today);
     todayWaterDelivered.value = result.total || 0;
   } catch (error) {
